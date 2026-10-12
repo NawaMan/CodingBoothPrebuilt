@@ -1,0 +1,238 @@
+name: Build prebuilt tools
+
+# Idempotent: each tool version is published to the release tagged "<tool>-<version>",
+# one asset per Ubuntu version / architecture (or a single asset for arch-independent
+# tools). Combinations whose asset already exists are skipped unless "force" is set.
+#
+# The weekly schedule builds the newest upstream version of every tool, so a new
+# upstream release gets prebuilt within a week and everything else is skipped.
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"   # Mondays 05:17 UTC
+  workflow_dispatch:
+    inputs:
+      tools:
+        description: "Tools to build, space or comma separated (folder names under tools/), or 'all'"
+        type: string
+        default: all
+      versions:
+        description: "Versions to build, space or comma separated, or 'latest'. Explicit versions need a single tool."
+        type: string
+        default: latest
+      architectures:
+        description: "CPU architectures (arch-independent tools always build once)"
+        type: choice
+        options: [both, x86_64, arm64]
+        default: both
+      ubuntu:
+        description: "Ubuntu version to build in ('codingbooth' = whatever NawaMan/CodingBooth's base image uses)"
+        type: choice
+        options: [codingbooth, "26.04", "24.04", "22.04"]
+        default: codingbooth
+      publish:
+        description: "Publish to GitHub Releases (otherwise only workflow artifacts)"
+        type: boolean
+        default: true
+      force:
+        description: "Rebuild even if already published, overwriting existing assets"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Serialize runs so two runs can't race on the same release.
+concurrency:
+  group: build-prebuilt
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      ubuntu: ${{ steps.plan.outputs.ubuntu }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+      has_work: ${{ steps.plan.outputs.has_work }}
+      lookup_failed: ${{ steps.plan.outputs.lookup_failed }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # A scheduled run has no inputs; these fall back to the dispatch defaults.
+          TOOLS: ${{ inputs.tools || 'all' }}
+          VERSIONS: ${{ inputs.versions || 'latest' }}
+          ARCHITECTURES: ${{ inputs.architectures || 'both' }}
+          UBUNTU: ${{ inputs.ubuntu || 'codingbooth' }}
+          FORCE: ${{ inputs.force || false }}
+          CODINGBOOTH_DOCKERFILE: https://raw.githubusercontent.com/NawaMan/CodingBooth/main/variants/base/Dockerfile
+        run: |
+          source lib/common.sh
+
+          if [[ "$UBUNTU" == codingbooth ]]; then
+            UBUNTU=$(curl -fsSL --retry 3 "$CODINGBOOTH_DOCKERFILE" \
+                       | sed -n 's/^ARG UBUNTU_VERSION=\([0-9][0-9]\.[0-9][0-9]\).*/\1/p' | head -1)
+            [[ -n "$UBUNTU" ]] || { echo "::error::Could not read UBUNTU_VERSION from $CODINGBOOTH_DOCKERFILE"; exit 1; }
+            echo "CodingBooth uses Ubuntu $UBUNTU"
+          fi
+          echo "ubuntu=$UBUNTU" >> "$GITHUB_OUTPUT"
+
+          if [[ "$TOOLS" == all ]]; then
+            tools=($(ls tools))
+          else
+            tools=(${TOOLS//,/ })
+          fi
+          for t in "${tools[@]}"; do
+            [[ -f "tools/$t/tool.conf" ]] || { echo "::error::Unknown tool '$t'"; exit 1; }
+          done
+
+          requested=(${VERSIONS//,/ })
+          if [[ "${requested[*]}" != latest ]] && (( ${#tools[@]} != 1 )); then
+            echo "::error::Explicit versions need exactly one tool (got: ${tools[*]})"; exit 1
+          fi
+
+          case "$ARCHITECTURES" in
+            both) native_archs=(x86_64 arm64) ;;
+            *)    native_archs=("$ARCHITECTURES") ;;
+          esac
+
+          {
+            echo "Building in \`ubuntu:$UBUNTU\`"
+            echo
+            echo "| Tool | Version | Arch | Asset | Action |"
+            echo "|---|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          entries=()
+          lookup_failed=false
+          for tool in "${tools[@]}"; do
+            mode=$(source "tools/$tool/tool.conf" && echo "$ARCH_MODE")
+            versions=("${requested[@]}")
+            if [[ "${versions[*]}" == latest ]]; then
+              if ! v=$(./latest.sh "$tool"); then
+                echo "::error::Could not look up the latest version of $tool"
+                echo "| $tool | ? | | | latest-version lookup failed |" >> "$GITHUB_STEP_SUMMARY"
+                lookup_failed=true
+                continue
+              fi
+              versions=("$v")
+            fi
+            archs=("${native_archs[@]}")
+            [[ "$mode" == any ]] && archs=(any)
+
+            for version in $(printf '%s\n' "${versions[@]}" | sort -uV); do
+              tag=$(cb_tag "$tool" "$version")
+              existing=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
+                           --json assets -q '.assets[].name' 2>/dev/null || true)
+              for a in "${archs[@]}"; do
+                asset=$(cb_asset_name "$tool" "$version" "$mode" "ubuntu$UBUNTU" "$a")
+                if grep -qxF "$asset.tar.gz" <<< "$existing" && [[ "$FORCE" != true ]]; then
+                  action="skip (already published)"
+                else
+                  action="build"
+                  # Host runner only; the build itself runs in an ubuntu:$UBUNTU container.
+                  runner="ubuntu-24.04"; [[ "$a" == arm64 ]] && runner+="-arm"
+                  entries+=("$(jq -nc --arg tool "$tool" --arg v "$version" --arg a "$a" \
+                    --arg r "$runner" --arg t "$tag" --arg n "$asset" \
+                    '{tool: $tool, version: $v, arch: $a, runner: $r, tag: $t, asset: $n}')")
+                fi
+                echo "| $tool | $version | $a | \`$asset\` | $action |" >> "$GITHUB_STEP_SUMMARY"
+              done
+            done
+          done
+          echo "lookup_failed=$lookup_failed" >> "$GITHUB_OUTPUT"
+
+          if (( ${#entries[@]} == 0 )); then
+            echo "Nothing to build; everything requested is already published. Use 'force' to rebuild."
+            echo "has_work=false" >> "$GITHUB_OUTPUT"
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+          else
+            matrix=$(printf '%s\n' "${entries[@]}" | jq -sc '{include: .}')
+            echo "has_work=true" >> "$GITHUB_OUTPUT"
+            echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+            echo "$matrix" | jq .
+          fi
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.has_work == 'true'
+    name: ${{ matrix.tool }} ${{ matrix.version }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    container: ubuntu:${{ needs.plan.outputs.ubuntu }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build
+        env:
+          TOOL: ${{ matrix.tool }}
+          VERSION: ${{ matrix.version }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          bash ./build.sh "$TOOL" "$VERSION" dist
+          # The plan step predicts asset names; make sure build.sh produced exactly that.
+          test -f "dist/$ASSET.tar.gz" || { echo "::error::Expected dist/$ASSET.tar.gz"; ls dist; exit 1; }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: [plan, build]
+    # Publish whatever built, even when another tool's build failed; the failed
+    # build still turns the run red.
+    if: >-
+      always() && needs.plan.outputs.has_work == 'true'
+      && (github.event_name == 'schedule' || inputs.publish)
+      && (needs.build.result == 'success' || needs.build.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish to releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MATRIX: ${{ needs.plan.outputs.matrix }}
+        run: |
+          jq -c '.include[]' <<< "$MATRIX" | while read -r entry; do
+            tool=$(jq -r .tool <<< "$entry"); version=$(jq -r .version <<< "$entry")
+            tag=$(jq -r .tag <<< "$entry");   asset=$(jq -r .asset <<< "$entry")
+            if [[ ! -f "dist/$asset.tar.gz" ]]; then
+              echo "::warning::$asset did not build; not publishing it"
+              continue
+            fi
+            if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              upstream=$(source "tools/$tool/tool.conf" && echo "$UPSTREAM")
+              gh release create "$tag" \
+                --repo "$GITHUB_REPOSITORY" \
+                --target "$GITHUB_SHA" \
+                --title "$tool $version" \
+                --notes "Prebuilt $tool $version for CodingBooth, from $upstream. Each tarball has a matching .sha256 file and a BUILD-INFO.txt inside."
+            fi
+            gh release upload "$tag" "dist/$asset.tar.gz" "dist/$asset.tar.gz.sha256" \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          done
+
+  # A tool whose latest version could not be looked up is skipped by the plan; fail
+  # the run at the end so a scheduled run does not go quietly green.
+  lookup-check:
+    needs: [plan, release]
+    if: always() && needs.plan.outputs.lookup_failed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::At least one tool's latest version could not be looked up; see the plan job."
+          exit 1

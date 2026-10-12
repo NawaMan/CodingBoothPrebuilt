@@ -1,0 +1,8 @@
+# Keeps the workflow's actions current. Upstream tool versions are not tracked here:
+# the weekly scheduled run of build.yml builds each tool's newest release instead.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
