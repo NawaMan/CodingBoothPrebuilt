@@ -12,7 +12,6 @@ it is useful outside CodingBooth too.
 
 | Tool | What it is | Builds | Asset layout |
 |---|---|---|---|
-| `make` | GNU Make (GPG-verified source) | per Ubuntu + arch | `bin/make` …, built with prefix `/opt/make/make-<ver>` |
 | `evcxr_jupyter` | Rust Jupyter kernel (upstream ships no linux arm64) | per Ubuntu + arch | `bin/evcxr_jupyter` |
 | `scratch-gui` | Scratch 3 editor, static web files (upstream archived at 5.3.0; AGPL-3.0) | once, any arch | contents of `build/`, plus `LICENSE` and `SOURCE.txt` |
 | `excalidraw` | Excalidraw self-hosted app, static web files | once, any arch | contents of `excalidraw-app/build/` |
@@ -23,7 +22,7 @@ Every tarball unpacks to a single folder named after the asset, holding the file
 
 ## Releases and asset names
 
-One release per tool version, tagged `<tool>-<version>`, e.g. `make-4.4.1`.
+One release per tool version, tagged `<tool>-<version>`, e.g. `evcxr_jupyter-0.22.0`.
 
 | Kind | Asset |
 |---|---|
@@ -33,12 +32,12 @@ One release per tool version, tagged `<tool>-<version>`, e.g. `make-4.4.1`.
 ## Using
 
 ```sh
-base=https://github.com/NawaMan/CodingBoothPrebuilt/releases/download/make-4.4.1
-asset=make-4.4.1-ubuntu26.04-x86_64.tar.gz
+base=https://github.com/NawaMan/CodingBoothPrebuilt/releases/download/evcxr_jupyter-0.22.0
+asset=evcxr_jupyter-0.22.0-ubuntu26.04-x86_64.tar.gz
 curl -fsSLO "$base/$asset" -O "$base/$asset.sha256"
 sha256sum -c "$asset.sha256"
-mkdir -p /opt/make/make-4.4.1
-tar -xzf "$asset" -C /opt/make/make-4.4.1 --strip-components=1
+mkdir -p /opt/evcxr
+tar -xzf "$asset" -C /opt/evcxr --strip-components=1
 ```
 
 A setup should fall back to building from source when the asset for its version, Ubuntu or
@@ -72,8 +71,8 @@ deliberate change in CodingBooth.
 `build.sh` expects to run as root in a throwaway Ubuntu container:
 
 ```sh
-docker run --rm -v "$PWD:/src" -w /src ubuntu:26.04 ./build.sh make 4.4.1 dist   # root-owned output in ./dist
-./latest.sh make            # on the host; needs curl and jq
+docker run --rm -v "$PWD:/src" -w /src ubuntu:26.04 ./build.sh evcxr_jupyter 0.22.0 dist   # root-owned output in ./dist
+./latest.sh evcxr_jupyter   # on the host; needs curl and jq
 ```
 
 ## Adding a tool

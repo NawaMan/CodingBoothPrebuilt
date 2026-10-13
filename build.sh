@@ -5,7 +5,7 @@
 # Usage: ./build.sh <tool> <version> [output-dir]
 #
 # Runs as root inside an ubuntu:<version> container (the workflow does this; locally:
-#   docker run --rm -v "$PWD:/src" -w /src ubuntu:26.04 ./build.sh make 4.4.1
+#   docker run --rm -v "$PWD:/src" -w /src ubuntu:26.04 ./build.sh evcxr_jupyter 0.22.0
 # ). The tool's own tools/<tool>/build.sh installs what it needs, builds, smoke-tests,
 # and puts the files to ship into $PKG_DIR. This script then adds BUILD-INFO.txt and
 # writes <asset>.tar.gz plus <asset>.tar.gz.sha256 into the output dir.
