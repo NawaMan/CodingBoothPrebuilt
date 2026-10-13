@@ -230,9 +230,14 @@ jobs:
   # the run at the end so a scheduled run does not go quietly green.
   lookup-check:
     needs: [plan, release]
-    if: always() && needs.plan.outputs.lookup_failed == 'true'
+    if: always() && needs.plan.result == 'success'
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          echo "::error::At least one tool's latest version could not be looked up; see the plan job."
-          exit 1
+      - env:
+          FAILED: ${{ needs.plan.outputs.lookup_failed }}
+        run: |
+          if [[ "$FAILED" == true ]]; then
+            echo "::error::At least one tool's latest version could not be looked up; see the plan job."
+            exit 1
+          fi
+          echo "All latest-version lookups succeeded."
