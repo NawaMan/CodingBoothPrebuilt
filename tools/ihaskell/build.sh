@@ -42,23 +42,32 @@ export PATH="$WORK/venv/bin:$PATH"   # ihaskell install looks for a jupyter comm
 "$PREFIX/bin/ihaskell" install --ghclib "$(ghc --print-libdir)" --prefix "$WORK/venv"
 python3 - <<'PY'
 import nbformat, nbclient
-cells = {
-    "1 + 1": "2",
-    'import qualified Data.Map as M\nM.fromList [(1, "a")]': 'fromList [(1,"a")]',
-    "data T = A | B deriving Show\n[A, B]": "[A,B]",
-    "f :: Int -> Int\nf x = x * 2\nmap f [1 .. 5]": "[2,4,6,8,10]",
-    'M.fromListWith (+) [("a", 1 :: Int), ("b", 1), ("a", 1)]': 'fromList [("a",2),("b",1)]',
-    'M.insertWith (+) "a" (1 :: Int) M.empty': 'fromList [("a",1)]',
-    # An import and a call in one cell: with GHC 9.10.3 this killed the kernel in a booth
-    # ("ARR_WORDS object entered"), while the same call after a separate import cell works.
-    'import qualified Data.Map.Strict as MS\nMS.insertWith (+) "a" (1 :: Int) MS.empty': 'fromList [("a",1)]',
+
+# Each notebook runs in a fresh kernel: a crash below only shows when the cell is the
+# first in its kernel to import Data.Map.
+notebooks = {
+    "basics": {
+        "1 + 1": "2",
+        'import qualified Data.Map as M\nM.fromList [(1, "a")]': 'fromList [(1,"a")]',
+        "data T = A | B deriving Show\n[A, B]": "[A,B]",
+        "f :: Int -> Int\nf x = x * 2\nmap f [1 .. 5]": "[2,4,6,8,10]",
+        'M.fromListWith (+) [("a", 1 :: Int), ("b", 1), ("a", 1)]': 'fromList [("a",2),("b",1)]',
+    },
+    # The first cell both imports Data.Map and calls insertWith. On GHC 9.10.3 this killed
+    # the kernel in a booth ("ARR_WORDS object entered"); with the import in an earlier
+    # cell the same call works.
+    "import and call in one cell": {
+        'import qualified Data.Map as M\nM.insertWith (+) "a" (1 :: Int) M.empty': 'fromList [("a",1)]',
+    },
 }
-nb = nbformat.v4.new_notebook(cells=[nbformat.v4.new_code_cell(c) for c in cells])
-nbclient.NotebookClient(nb, kernel_name="haskell", timeout=300).execute()
-for cell, want in zip(nb.cells, cells.values()):
-    got = [o.get("data", {}).get("text/plain") for o in cell.outputs]
-    assert got == [want], f"{cell.source!r}: expected {want!r}, got {cell.outputs!r}"
-    print(f"   {cell.source.splitlines()[-1]!r} => {want}")
+for name, cells in notebooks.items():
+    print(f"   [{name}]")
+    nb = nbformat.v4.new_notebook(cells=[nbformat.v4.new_code_cell(c) for c in cells])
+    nbclient.NotebookClient(nb, kernel_name="haskell", timeout=300).execute()
+    for cell, want in zip(nb.cells, cells.values()):
+        got = [o.get("data", {}).get("text/plain") for o in cell.outputs]
+        assert got == [want], f"{cell.source!r}: expected {want!r}, got {cell.outputs!r}"
+        print(f"   {cell.source.splitlines()[-1]!r} => {want}")
 PY
 echo "smoke tests passed"
 
