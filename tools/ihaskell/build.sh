@@ -47,6 +47,9 @@ cells = {
     'import qualified Data.Map as M\nM.fromList [(1, "a")]': 'fromList [(1,"a")]',
     "data T = A | B deriving Show\n[A, B]": "[A,B]",
     "f :: Int -> Int\nf x = x * 2\nmap f [1 .. 5]": "[2,4,6,8,10]",
+    # GHC 9.10.3 + IHaskell 0.13 kills the kernel here ("ARR_WORDS object entered").
+    'M.fromListWith (+) [("a", 1 :: Int), ("b", 1), ("a", 1)]': 'fromList [("a",2),("b",1)]',
+    'M.insertWith (+) "a" (1 :: Int) M.empty': 'fromList [("a",1)]',
 }
 nb = nbformat.v4.new_notebook(cells=[nbformat.v4.new_code_cell(c) for c in cells])
 nbclient.NotebookClient(nb, kernel_name="haskell", timeout=300).execute()
