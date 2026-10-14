@@ -85,3 +85,23 @@ cb_install_node() {
     rm -f /tmp/node.tar.xz
     export PATH="/opt/node/bin:$PATH"
 }
+
+# Install GHC (and the recommended cabal) with ghcup into $WORK/ghcup and put them on
+# PATH -- the same way CodingBooth's haskell setup installs them.
+#   cb_install_ghc <ghc-version|recommended>
+cb_install_ghc() {
+    local ghc="$1" log="$WORK/ghcup.log"
+    cb_apt build-essential gzip libgmp-dev zlib1g-dev libtinfo6 libffi-dev libncurses-dev
+    echo "==> Installing GHC $ghc and cabal with ghcup"
+    export GHCUP_INSTALL_BASE_PREFIX="$WORK/ghcup" GHCUP_SKIP_UPDATE_CHECK=1 \
+           BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_MINIMAL=1
+    cb_fetch https://get-ghcup.haskell.org "$WORK/get-ghcup.sh"
+    local ghcup="$WORK/ghcup/.ghcup/bin/ghcup"
+    {
+        bash "$WORK/get-ghcup.sh" &&
+        "$ghcup" install ghc "$ghc" && "$ghcup" set ghc "$ghc" &&
+        "$ghcup" install cabal recommended && "$ghcup" set cabal recommended
+    } > "$log" 2>&1 || { tail -40 "$log"; return 1; }
+    export PATH="$WORK/ghcup/.ghcup/bin:$PATH" CABAL_DIR="$WORK/cabal"
+    cabal update > /dev/null
+}

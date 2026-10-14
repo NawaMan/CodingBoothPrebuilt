@@ -14,26 +14,12 @@ PREFIX="${PREFIX_PATTERN//\{version\}/$VERSION}"
 # happy (pulled in through ghc-lib-parser) cannot read its UTF-8 grammar under the C locale.
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
 
-cb_apt build-essential git gzip libgmp-dev zlib1g-dev libtinfo6 libffi-dev libncurses-dev \
-       pkg-config libmagic-dev libzmq3-dev python3 python3-venv
-
-echo "==> Installing GHC $GHC_VERSION and cabal with ghcup"
-export GHCUP_INSTALL_BASE_PREFIX="$WORK/ghcup" GHCUP_SKIP_UPDATE_CHECK=1 \
-       BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_MINIMAL=1
-cb_fetch https://get-ghcup.haskell.org "$WORK/get-ghcup.sh"
-bash "$WORK/get-ghcup.sh" > "$WORK/ghcup.log" 2>&1 || { tail -40 "$WORK/ghcup.log"; exit 1; }
-GHCUP="$WORK/ghcup/.ghcup/bin/ghcup"
-"$GHCUP" install ghc "$GHC_VERSION"  >> "$WORK/ghcup.log" 2>&1 || { tail -40 "$WORK/ghcup.log"; exit 1; }
-"$GHCUP" set ghc "$GHC_VERSION"      >> "$WORK/ghcup.log" 2>&1
-"$GHCUP" install cabal recommended   >> "$WORK/ghcup.log" 2>&1 || { tail -40 "$WORK/ghcup.log"; exit 1; }
-"$GHCUP" set cabal recommended       >> "$WORK/ghcup.log" 2>&1
-export PATH="$WORK/ghcup/.ghcup/bin:$PATH"
+cb_apt git pkg-config libmagic-dev libzmq3-dev python3 python3-venv
+cb_install_ghc "$GHC_VERSION"
 
 # The store goes straight into the final prefix: the binary finds its data files there.
 echo "==> cabal install ihaskell-$IHASKELL_VERSION into $PREFIX"
-export CABAL_DIR="$WORK/cabal"
 rm -rf "$PREFIX" && mkdir -p "$PREFIX/bin"
-cabal update > /dev/null
 cabal --store-dir="$PREFIX/store" install "ihaskell-$IHASKELL_VERSION" \
       --installdir="$PREFIX/bin" --install-method=copy --overwrite-policy=always \
       > "$WORK/build.log" 2>&1 || { tail -80 "$WORK/build.log"; exit 1; }

@@ -14,6 +14,8 @@ it is useful outside CodingBooth too.
 |---|---|---|---|
 | `evcxr_jupyter` | Rust Jupyter kernel (upstream ships no linux arm64) | per Ubuntu + arch | `bin/evcxr_jupyter` |
 | `ihaskell` | Haskell Jupyter kernel, for one exact GHC; version is `<ihaskell>-ghc<ghc>` | per Ubuntu + arch | `bin/ihaskell` plus its data files under `store/`; extract to `/opt/ihaskell/ihaskell-<version>` |
+| `hlint` | Haskell linter; upstream ships x86_64 only | arm64 only | `hlint` plus `data/`, like upstream's release |
+| `ormolu` | Haskell formatter; upstream ships x86_64 only | arm64 only | `ormolu` |
 | `scratch-gui` | Scratch 3 editor, static web files (upstream archived at 5.3.0; AGPL-3.0) | once, any arch | contents of `build/`, plus `LICENSE` and `SOURCE.txt` |
 | `excalidraw` | Excalidraw self-hosted app, static web files | once, any arch | contents of `excalidraw-app/build/` |
 
@@ -92,6 +94,9 @@ Create `tools/<tool>/` with three files:
   from `lib/common.sh`), builds, **smoke-tests**, and copies the files to ship into `$PKG_DIR`.
   Lines appended to `$BUILD_NOTES` end up in `BUILD-INFO.txt`. Ship the upstream license.
 - **`latest.sh`**: prints the newest upstream version. It runs on the host.
+
+A native tool that upstream already ships for some CPUs can set `ARCHES="arm64"` in
+`tool.conf` to build only the missing ones.
 
 ## Notes
 

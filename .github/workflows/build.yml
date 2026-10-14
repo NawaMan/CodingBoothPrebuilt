@@ -109,6 +109,8 @@ jobs:
           lookup_failed=false
           for tool in "${tools[@]}"; do
             mode=$(source "tools/$tool/tool.conf" && echo "$ARCH_MODE")
+            # ARCHES in tool.conf narrows a native tool to the CPUs upstream doesn't cover.
+            only=$(source "tools/$tool/tool.conf" && echo "${ARCHES:-}")
             versions=("${requested[@]}")
             if [[ "${versions[*]}" == latest ]]; then
               if ! v=$(./latest.sh "$tool"); then
@@ -119,7 +121,10 @@ jobs:
               fi
               versions=("$v")
             fi
-            archs=("${native_archs[@]}")
+            archs=()
+            for a in "${native_archs[@]}"; do
+              [[ -z "$only" || " $only " == *" $a "* ]] && archs+=("$a")
+            done
             [[ "$mode" == any ]] && archs=(any)
 
             for version in $(printf '%s\n' "${versions[@]}" | sort -uV); do
