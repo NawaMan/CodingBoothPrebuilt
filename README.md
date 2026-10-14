@@ -13,6 +13,7 @@ it is useful outside CodingBooth too.
 | Tool | What it is | Builds | Asset layout |
 |---|---|---|---|
 | `evcxr_jupyter` | Rust Jupyter kernel (upstream ships no linux arm64) | per Ubuntu + arch | `bin/evcxr_jupyter` |
+| `ihaskell` | Haskell Jupyter kernel, for one exact GHC; version is `<ihaskell>-ghc<ghc>` | per Ubuntu + arch | `bin/ihaskell` plus its data files under `store/`; extract to `/opt/ihaskell/ihaskell-<version>` |
 | `scratch-gui` | Scratch 3 editor, static web files (upstream archived at 5.3.0; AGPL-3.0) | once, any arch | contents of `build/`, plus `LICENSE` and `SOURCE.txt` |
 | `excalidraw` | Excalidraw self-hosted app, static web files | once, any arch | contents of `excalidraw-app/build/` |
 
@@ -39,6 +40,11 @@ sha256sum -c "$asset.sha256"
 mkdir -p /opt/evcxr
 tar -xzf "$asset" -C /opt/evcxr --strip-components=1
 ```
+
+`ihaskell` is the exception to "extract anywhere": its data files are found through paths
+fixed at build time, so it must land in `/opt/ihaskell/ihaskell-<version>`. It needs the GHC
+named in its version (installed by ghcup) and is registered with
+`ihaskell install --ghclib "$(ghc --print-libdir)"`.
 
 A setup should fall back to building from source when the asset for its version, Ubuntu or
 architecture is not published (a 404).
