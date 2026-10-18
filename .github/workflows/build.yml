@@ -54,6 +54,8 @@ jobs:
       ubuntu: ${{ steps.plan.outputs.ubuntu }}
       matrix: ${{ steps.plan.outputs.matrix }}
       has_work: ${{ steps.plan.outputs.has_work }}
+      verify_matrix: ${{ steps.plan.outputs.verify_matrix }}
+      has_verification: ${{ steps.plan.outputs.has_verification }}
       lookup_failed: ${{ steps.plan.outputs.lookup_failed }}
     steps:
       - uses: actions/checkout@v7
@@ -106,6 +108,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
           entries=()
+          verification=()
           lookup_failed=false
           for tool in "${tools[@]}"; do
             mode=$(source "tools/$tool/tool.conf" && echo "$ARCH_MODE")
@@ -142,12 +145,22 @@ jobs:
                   entries+=("$(jq -nc --arg tool "$tool" --arg v "$version" --arg a "$a" \
                     --arg r "$runner" --arg t "$tag" --arg n "$asset" \
                     '{tool: $tool, version: $v, arch: $a, runner: $r, tag: $t, asset: $n}')")
+                  if [[ -f "tools/$tool/verify.sh" ]]; then
+                    verification+=("${entries[-1]}")
+                  fi
                 fi
                 echo "| $tool | $version | $a | \`$asset\` | $action |" >> "$GITHUB_STEP_SUMMARY"
               done
             done
           done
           echo "lookup_failed=$lookup_failed" >> "$GITHUB_OUTPUT"
+          if (( ${#verification[@]} )); then
+            echo "has_verification=true" >> "$GITHUB_OUTPUT"
+            echo "verify_matrix=$(printf '%s\n' "${verification[@]}" | jq -sc '{include: .}')" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_verification=false" >> "$GITHUB_OUTPUT"
+            echo 'verify_matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+          fi
 
           if (( ${#entries[@]} == 0 )); then
             echo "Nothing to build; everything requested is already published. Use 'force' to rebuild."
@@ -188,8 +201,36 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-  release:
+  verify:
     needs: [plan, build]
+    if: always() && needs.plan.outputs.has_verification == 'true'
+    name: Verify ${{ matrix.tool }} ${{ matrix.version }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    container: ubuntu:${{ needs.plan.outputs.ubuntu }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.verify_matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.asset }}
+          path: dist
+      - name: Verify extracted archive
+        env:
+          TOOL: ${{ matrix.tool }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          bash "tools/$TOOL/verify.sh" "dist/$ASSET.tar.gz"
+          touch "dist/$ASSET.verified"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.asset }}-verified
+          path: dist/*.verified
+          if-no-files-found: error
+
+  release:
+    needs: [plan, build, verify]
     # Publish whatever built, even when another tool's build failed; the failed
     # build still turns the run red.
     if: >-
@@ -217,6 +258,10 @@ jobs:
             tag=$(jq -r .tag <<< "$entry");   asset=$(jq -r .asset <<< "$entry")
             if [[ ! -f "dist/$asset.tar.gz" ]]; then
               echo "::warning::$asset did not build; not publishing it"
+              continue
+            fi
+            if [[ -f "tools/$tool/verify.sh" && ! -f "dist/$asset.verified" ]]; then
+              echo "::warning::$asset did not pass fresh-container verification; not publishing it"
               continue
             fi
             if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then

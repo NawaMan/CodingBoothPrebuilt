@@ -12,6 +12,7 @@ it is useful outside CodingBooth too.
 
 | Tool | What it is | Builds | Asset layout |
 |---|---|---|---|
+| `ocaml` | OCaml compiler, Dune, UTop and OCamlFormat; version is `<compiler>-tools<revision>` | per Ubuntu + arch | complete opam environment; extract to `/opt/ocaml/ocaml-<version>` |
 | `evcxr_jupyter` | Rust Jupyter kernel (upstream ships no linux arm64) | per Ubuntu + arch | `bin/evcxr_jupyter` |
 | `ihaskell` | Haskell Jupyter kernel, for one exact GHC; version is `<ihaskell>-ghc<ghc>` | per Ubuntu + arch | `bin/ihaskell` plus its data files under `store/`; extract to `/opt/ihaskell/ihaskell-<version>` |
 | `hlint` | Haskell linter; upstream ships x86_64 only | arm64 only | `hlint` plus `data/`, like upstream's release |
@@ -48,7 +49,22 @@ fixed at build time, so it must land in `/opt/ihaskell/ihaskell-<version>`. It n
 named in its version (installed by ghcup) and is registered with
 `ihaskell install --ghclib "$(ghc --print-libdir)"`.
 
-A setup should fall back to building from source when the asset for its version, Ubuntu or
+`ocaml` bundles a compiler and a pinned tool set (currently `5.4.1-tools1`: Dune 3.24.0,
+UTop 2.17.0, OCamlFormat 0.29.0). `tools/ocaml/tool.conf` owns the tool pins; changing
+these pins requires a new `toolsN` revision, so published bundles keep their identity.
+The full opam root, compiler libraries, package state, licenses and `SWITCH-STATE.export`
+are included. Source `env.sh` at its fixed prefix; the export file records the build
+and is not a substitute for the binary archive.
+
+The build uses one compile job from compiler creation onward. CI then extracts the
+archive in a fresh Ubuntu container and, as a non-root user, compiles bytecode and native
+programs, builds with Dune, runs UTop, formats with OCamlFormat, and installs a local opam
+package. A failed verification prevents that archive from being published. CodingBooth's
+OCaml setup requires a published archive: it never starts a source build automatically.
+To explicitly request a source build, dispatch `tools=ocaml`, `versions=5.4.1-tools1`,
+`architectures=both`, `ubuntu=26.04`. Additional project packages may still compile locally.
+
+For the other tools, a setup should fall back to building from source when the asset for its version, Ubuntu or
 architecture is not published (a 404).
 
 ## Building
@@ -103,3 +119,8 @@ A native tool that upstream already ships for some CPUs can set `ARCHES="arm64"`
 - arm64 builds use GitHub's `ubuntu-*-arm` hosted runners, which are free for public repositories only.
 - `scratch-gui` is AGPL-3.0-only. Its bundle ships the license and `SOURCE.txt`, which names the
   exact upstream tag and commit it was built from.
+
+An optional **`verify.sh <archive>`** runs in a fresh Ubuntu container after packaging.
+It installs runtime prerequisites, verifies the checksum and extracted environment, and
+exits nonzero on failure. Only archives with a successful verification marker are published
+for tools that provide this hook.
