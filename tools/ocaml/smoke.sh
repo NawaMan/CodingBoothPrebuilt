@@ -14,7 +14,7 @@ ocamlopt -o hello-native hello.ml
 printf '(lang dune 3.0)\n' > dune-project
 printf '(executable (name hello))\n' > dune
 [[ "$(dune exec -- ./hello.exe)" == 'OCaml works' ]]
-printf 'print_endline "UTOP_WORKS";;\n' | utop -noinit -stdin > utop.out
+printf 'print_endline "UTOP_WORKS";;\n' | utop -init /dev/null -stdin > utop.out
 grep -q UTOP_WORKS utop.out
 printf 'let x=1+2\n' > format.ml
 ocamlformat --enable-outside-detected-project --name format.ml format.ml > formatted.ml
