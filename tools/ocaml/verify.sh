@@ -8,7 +8,7 @@ prefix="/opt/ocaml/ocaml-${BASH_REMATCH[1]}"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends build-essential m4 pkg-config git rsync unzip \
-    ca-certificates curl libgmp10 libev4 libzstd1 > /dev/null
+    ca-certificates curl libgmp10 libev4 libzstd1 libglpk40 > /dev/null
 (cd "$(dirname "$archive")" && sha256sum -c "$(basename "$archive").sha256")
 mkdir -p "$prefix"
 tar -xzf "$archive" -C "$prefix" --strip-components=1 --no-same-owner
