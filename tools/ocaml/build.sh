@@ -13,7 +13,7 @@ compiler="${BASH_REMATCH[1]}"
 prefix="${PREFIX_PATTERN//\{version\}/$VERSION}"
 [[ ! -e "$prefix" ]] || { echo "error: build prefix already exists: $prefix" >&2; exit 1; }
 
-cb_apt opam build-essential m4 pkg-config git rsync unzip bubblewrap libgmp-dev libev-dev
+cb_apt opam build-essential m4 pkg-config git rsync unzip libgmp-dev libev-dev
 export OPAMROOT="$prefix/opam" OPAMSWITCH=booth OPAMJOBS=1 OPAMDOWNLOADJOBS=2
 export OPAMROOTISOK=1 LANG=C.UTF-8 LC_ALL=C.UTF-8
 mkdir -p "$prefix/bin"
@@ -63,5 +63,5 @@ cp -a "$prefix/." "$PKG_DIR/"
     echo "opam:         $(opam --version)"
     echo "prefix:       $prefix (extract here; absolute paths are embedded)"
     echo "build jobs:   1 (compiler and packages)"
-    echo "runtime:      build-essential m4 pkg-config git rsync unzip libgmp10 libev4 libzstd1 libglpk40"
+    echo "runtime:      $RUNTIME_PACKAGES"
 } >> "$BUILD_NOTES"

@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # Runs in a NEW Ubuntu container, without the build environment or its apt dependencies.
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/tool.conf"
 archive="${1:?usage: verify.sh <archive>}"
 name=$(basename "$archive" .tar.gz)
-[[ "$name" =~ ^ocaml-([0-9]+\.[0-9]+\.[0-9]+-tools[0-9]+)-ubuntu[0-9.]+-(x86_64|arm64)$ ]] || exit 1
+[[ "$name" =~ ^ocaml-([0-9]+\.[0-9]+\.[0-9]+-tools[0-9]+)-ubuntu[0-9.]+-(x86_64|arm64)$ ]] || {
+    echo "error: expected ocaml-<compiler>-tools<N>-ubuntu<ver>-<arch>.tar.gz, got '$(basename "$archive")'" >&2; exit 1;
+}
 prefix="/opt/ocaml/ocaml-${BASH_REMATCH[1]}"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq --no-install-recommends build-essential m4 pkg-config git rsync unzip \
-    ca-certificates curl libgmp10 libev4 libzstd1 libglpk40 > /dev/null
+# shellcheck disable=SC2086  # RUNTIME_PACKAGES is a word list
+apt-get install -y -qq --no-install-recommends $RUNTIME_PACKAGES ca-certificates curl > /dev/null
 (cd "$(dirname "$archive")" && sha256sum -c "$(basename "$archive").sha256")
 mkdir -p "$prefix"
 tar -xzf "$archive" -C "$prefix" --strip-components=1 --no-same-owner
