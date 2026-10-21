@@ -13,6 +13,7 @@ it is useful outside CodingBooth too.
 | Tool | What it is | Builds | Asset layout |
 |---|---|---|---|
 | `evcxr_jupyter` | Rust Jupyter kernel (upstream ships no linux arm64) | per Ubuntu + arch | `bin/evcxr_jupyter` |
+| `ghc` | GHC as ghcup installs it (whose own install step takes 6-7 minutes in a Docker build) | per Ubuntu + arch | ghcup's `.ghcup/ghc/<version>/` (`bin/`, `lib/`, `share/`), built at `/opt/ghc/ghc-<version>` |
 | `ihaskell` | Haskell Jupyter kernel, for one exact GHC; version is `<ihaskell>-ghc<ghc>` | per Ubuntu + arch | `bin/ihaskell` plus its data files under `store/`; extract to `/opt/ihaskell/ihaskell-<version>` |
 | `hlint` | Haskell linter; upstream ships x86_64 only | arm64 only | `hlint` plus `data/`, like upstream's release |
 | `ormolu` | Haskell formatter; upstream ships x86_64 only | arm64 only | `ormolu` |
@@ -47,6 +48,10 @@ tar -xzf "$asset" -C /opt/evcxr --strip-components=1
 fixed at build time, so it must land in `/opt/ihaskell/ihaskell-<version>`. It needs the GHC
 named in its version (installed by ghcup) and is registered with
 `ihaskell install --ghclib "$(ghc --print-libdir)"`.
+
+`ghc` unpacks anywhere, with one fix-up: the wrapper scripts in `bin/` name the build prefix,
+so rewrite `/opt/ghc/ghc-<version>` in them to the new folder. Unpacked into a ghcup tree's
+`.ghcup/ghc/<version>`, ghcup lists it as installed and `ghcup set ghc <version>` works.
 
 A setup should fall back to building from source when the asset for its version, Ubuntu or
 architecture is not published (a 404).
