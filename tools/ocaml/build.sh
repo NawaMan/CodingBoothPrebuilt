@@ -32,8 +32,12 @@ export OCAML_TOPLEVEL_PATH="\$OCAML_HOME/lib/toplevel"
 export CAML_LD_LIBRARY_PATH="\$OCAML_HOME/lib/stublibs:\$OCAML_HOME/lib/ocaml/stublibs"
 export OPAMJOBS=\${OPAMJOBS:-1}
 case ":\$PATH:" in
+    *":$prefix/bin:"*) ;;
+    *) export PATH="$prefix/bin:\$PATH" ;;
+esac
+case ":\$PATH:" in
     *":\$OCAML_HOME/bin:"*) ;;
-    *) export PATH="\$OCAML_HOME/bin:$prefix/bin:\$PATH" ;;
+    *) export PATH="\$OCAML_HOME/bin:\$PATH" ;;
 esac
 EOF
 printf '%s\n' "$VERSION" > "$prefix/BUNDLE-VERSION"

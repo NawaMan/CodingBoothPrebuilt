@@ -54,9 +54,11 @@ named in its version (installed by ghcup) and is registered with
 so rewrite `/opt/ghc/ghc-<version>` in them to the new folder. Unpacked into a ghcup tree's
 `.ghcup/ghc/<version>`, ghcup lists it as installed and `ghcup set ghc <version>` works.
 
-`ocaml` bundles a compiler and a pinned tool set (currently `5.4.1-tools1`: Dune 3.24.0,
+`ocaml` bundles a compiler and a pinned tool set, e.g. `5.5.1-tools1` (`tools1`: Dune 3.24.0,
 UTop 2.17.0, OCamlFormat 0.29.0). `tools/ocaml/tool.conf` owns the tool pins; changing
 these pins requires a new `toolsN` revision, so published bundles keep their identity.
+The weekly run pairs the newest OCaml release with the current pins. If a new compiler is
+outside a pinned tool's bounds, that build fails until the pins and `toolsN` are bumped.
 The full opam root, compiler libraries, package state, licenses and `SWITCH-STATE.export`
 are included. Source `env.sh` at its fixed prefix; the export file records the build
 and is not a substitute for the binary archive.
@@ -66,7 +68,7 @@ archive in a fresh Ubuntu container and, as a non-root user, compiles bytecode a
 programs, builds with Dune, runs UTop, formats with OCamlFormat, and installs a local opam
 package. A failed verification prevents that archive from being published. CodingBooth's
 OCaml setup requires a published archive: it never starts a source build automatically.
-To explicitly request a source build, dispatch `tools=ocaml`, `versions=5.4.1-tools1`,
+To build a version on CI, dispatch `tools=ocaml`, `versions=5.5.1-tools1`,
 `architectures=both`, `ubuntu=26.04`. Additional project packages may still compile locally.
 
 For the other tools, a setup should fall back to building from source when the asset for its version, Ubuntu or

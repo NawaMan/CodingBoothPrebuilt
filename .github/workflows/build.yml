@@ -212,18 +212,24 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.verify_matrix) }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      # A failed build leaves no artifact; its build job already turned the run red,
+      # so skip here instead of failing twice. Release won't publish it unverified.
+      - id: download
+        uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
           name: ${{ matrix.asset }}
           path: dist
       - name: Verify extracted archive
+        if: steps.download.outcome == 'success'
         env:
           TOOL: ${{ matrix.tool }}
           ASSET: ${{ matrix.asset }}
         run: |
           bash "tools/$TOOL/verify.sh" "dist/$ASSET.tar.gz"
           touch "dist/$ASSET.verified"
-      - uses: actions/upload-artifact@v7
+      - if: steps.download.outcome == 'success'
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.asset }}-verified
           path: dist/*.verified
