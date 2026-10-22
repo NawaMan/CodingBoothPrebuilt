@@ -42,9 +42,11 @@ on:
 permissions:
   contents: read
 
-# Serialize runs so two runs can't race on the same release.
+# Serialize runs per tools+versions so two runs can't race on the same release. A group
+# holds one pending run and a newer one cancels it, so a single shared group would drop
+# all but the last of several dispatches; keying it lets different builds run side by side.
 concurrency:
-  group: build-prebuilt
+  group: build-prebuilt-${{ inputs.tools || 'all' }}-${{ inputs.versions || 'latest' }}
   cancel-in-progress: false
 
 jobs:
