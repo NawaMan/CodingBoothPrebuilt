@@ -86,6 +86,29 @@ cb_install_node() {
     export PATH="/opt/node/bin:$PATH"
 }
 
+# GHC 9.4's bindists hardcode gold into the hsc2hs wrapper (HSC2HS_EXTRA), and Ubuntu
+# 26.04 ships no gold, so every package that runs hsc2hs fails to link. GHC itself links
+# with the default ld; make the wrapper do the same.
+#   cb_ghc_drop_gold <ghc-dir>
+cb_ghc_drop_gold() {
+    local f
+    for f in "$1"/bin/hsc2hs*; do
+        if [[ -f "$f" && ! -L "$f" ]] && grep -q -- '-fuse-ld=gold' "$f"; then
+            sed -i 's/ *--lflag=-fuse-ld=gold//' "$f"
+        fi
+    done
+}
+
+# The GHC to build a Hackage tool's $VERSION with: its "<version>=<ghc>" entry in the
+# tool's BUILD_GHC, else ghcup's recommended one.
+cb_build_ghc() {
+    local pair
+    for pair in ${BUILD_GHC:-}; do
+        [[ "${pair%%=*}" == "$VERSION" ]] && { echo "${pair#*=}"; return; }
+    done
+    echo recommended
+}
+
 # Install GHC (and the recommended cabal) with ghcup into $WORK/ghcup and put them on
 # PATH -- the same way CodingBooth's haskell setup installs them.
 #   cb_install_ghc <ghc-version|recommended>
@@ -102,6 +125,8 @@ cb_install_ghc() {
         "$ghcup" install ghc "$ghc" && "$ghcup" set ghc "$ghc" &&
         "$ghcup" install cabal recommended && "$ghcup" set cabal recommended
     } > "$log" 2>&1 || { tail -40 "$log"; return 1; }
+    local dir
+    for dir in "$WORK"/ghcup/.ghcup/ghc/*; do cb_ghc_drop_gold "$dir"; done
     export PATH="$WORK/ghcup/.ghcup/bin:$PATH" CABAL_DIR="$WORK/cabal"
     cabal update > /dev/null
 }

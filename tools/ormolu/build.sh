@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Ormolu from Hackage, built with ghcup's recommended GHC. Called by ../../build.sh.
+# Ormolu from Hackage, built with the GHC tool.conf names for its version (else ghcup's
+# recommended one). Called by ../../build.sh.
 set -euo pipefail
 source "$ROOT/lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/tool.conf"
 
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
-cb_install_ghc recommended
+cb_install_ghc "$(cb_build_ghc)"
 
 echo "==> cabal install ormolu-$VERSION"
 cabal install "ormolu-$VERSION" --installdir="$WORK/bin" --install-method=copy \

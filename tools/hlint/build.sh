@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# HLint from Hackage, built with ghcup's recommended GHC. Called by ../../build.sh.
+# HLint from Hackage, built with the GHC tool.conf names for its version (else ghcup's
+# recommended one). Called by ../../build.sh.
 set -euo pipefail
 source "$ROOT/lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/tool.conf"
 
 # happy (pulled in through ghc-lib-parser) cannot read its UTF-8 grammar under the C locale.
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
-cb_install_ghc recommended
+cb_install_ghc "$(cb_build_ghc)"
 
 echo "==> cabal install hlint-$VERSION"
 cabal install "hlint-$VERSION" --installdir="$WORK/bin" --install-method=copy \

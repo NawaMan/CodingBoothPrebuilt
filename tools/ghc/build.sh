@@ -21,12 +21,22 @@ ghcup="$WORK/ghcup/.ghcup/bin/ghcup"
 "$ghcup" --version | sed 's/^/ghcup:        /' >> "$BUILD_NOTES"
 
 # Only the wrapper scripts in bin/ name the install prefix; lib/settings and the package
-# database use paths relative to the libdir.
+# database use paths relative to the libdir. Older bindists (9.2 on arm64) write absolute
+# paths into the package database; those become ${pkgroot}-relative, as newer ones are.
 built="$WORK/ghcup/.ghcup/ghc/$VERSION"
 rm -rf "$PREFIX" && mkdir -p "$(dirname "$PREFIX")"
 mv "$built" "$PREFIX"
 rm -rf "$WORK/ghcup"
 grep -lr "$built" "$PREFIX/bin" | xargs sed -i "s|$built|$PREFIX|g"
+for db in "$PREFIX"/lib/*/package.conf.d "$PREFIX"/lib/*/lib/package.conf.d; do
+    [[ -d "$db" ]] || continue
+    if absolute=$(grep -l "$built" "$db"/*.conf); then
+        root=$(realpath --relative-to="$(dirname "$db")" "$PREFIX")
+        xargs sed -i "s|$built|\${pkgroot}/$root|g" <<< "$absolute"
+        "$PREFIX/bin/ghc-pkg" recache --package-db="$db"
+    fi
+done
+cb_ghc_drop_gold "$PREFIX"
 if left=$(grep -rIl "$built" "$PREFIX"); then
     echo "error: files still name the build prefix $built:" >&2; echo "$left" >&2; exit 1
 fi
@@ -42,6 +52,14 @@ HS
 [[ "$(./hello)" == '[("a",3),("b",2),("c",1)]' ]] || { echo "error: compiled program printed: $(./hello)" >&2; exit 1; }
 [[ "$("$PREFIX/bin/runghc" hello.hs)" == '[("a",3),("b",2),("c",1)]' ]] || { echo "error: runghc failed" >&2; exit 1; }
 [[ "$(echo '1 + 2' | "$PREFIX/bin/ghci" -v0)" == 3 ]] || { echo "error: ghci failed" >&2; exit 1; }
+# hsc2hs links its own helper program, so it catches linker flags GHC itself doesn't use.
+cat > size.hsc <<'HSC'
+#include <stdint.h>
+main :: IO ()
+main = print (#{size int64_t} :: Int)
+HSC
+"$PREFIX/bin/hsc2hs" size.hsc && "$PREFIX/bin/ghc" size.hs -o size > /dev/null
+[[ "$(./size)" == 8 ]] || { echo "error: hsc2hs program printed: $(./size)" >&2; exit 1; }
 "$PREFIX/bin/ghc-pkg" check
 [[ "$("$PREFIX/bin/ghc" --numeric-version)" == "$VERSION" ]]
 
