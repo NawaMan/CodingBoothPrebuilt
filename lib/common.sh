@@ -60,6 +60,53 @@ cb_github_latest_release() {
         | jq -er '.tag_name' | sed 's/^v//'
 }
 
+# Tag names of a GitHub repo's published releases (no drafts or prereleases), newest
+# first, without a leading "v". Covers the newest 100.
+cb_github_releases() {
+    local repo="$1" token="${GITHUB_TOKEN:-${GH_TOKEN:-}}" auth=()
+    [[ -n "$token" ]] && auth=(-H "Authorization: Bearer $token")
+    curl -fsSL --retry 3 "${auth[@]}" "https://api.github.com/repos/$repo/releases?per_page=100" \
+        | jq -er '.[] | select(.draft or .prerelease | not) | .tag_name' | sed 's/^v//'
+}
+
+# True when version $1 sorts before $2 (sort -V order: 9.12.4 < 9.13).
+cb_version_lt() {
+    [[ "$1" != "$2" && "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" == "$1" ]]
+}
+
+# From X.Y.Z versions on stdin, the newest of each X.Y series at or above <from>, plus any
+# extra series named, oldest first. Other shapes (prereleases, betas) are dropped.
+#   cb_newest_per_series <from> [<series>...]
+cb_newest_per_series() {
+    local from="$1"; shift
+    grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | awk -F. -v from="$from" -v also=" $* " '
+        BEGIN { split(from, f, ".") }
+        { series = $1 "." $2 }
+        $1 > f[1] || ($1 == f[1] && $2 >= f[2]) || index(also, " " series " ") { newest[series] = $0 }
+        END { for (s in newest) print newest[s] }' | sort -V
+}
+
+# "<version> <ghc>" for <package> in each Stackage LTS major from <from-lts> up to the
+# current one, newest first, then nightly: the versions Stack users get, each with the
+# GHC its snapshot builds it with. Snapshots without the package print nothing.
+#   cb_stackage_versions <package> <from-lts>
+cb_stackage_versions() {
+    local pkg="$1" from="$2" newest n snapshot ghc version snapshots=()
+    newest=$(curl -fsSL --retry 3 -H 'Accept: application/json' https://www.stackage.org/lts \
+               | jq -er '.snapshot.name' | sed -nE 's/^lts-([0-9]+)\..*/\1/p') || return 1
+    [[ -n "$newest" ]] || { echo "error: could not read the current Stackage LTS" >&2; return 1; }
+    for (( n = newest; n >= from; n-- )); do snapshots+=("lts-$n"); done
+    snapshots+=(nightly)
+    for snapshot in "${snapshots[@]}"; do
+        ghc=$(curl -fsSL --retry 3 -H 'Accept: application/json' "https://www.stackage.org/$snapshot" \
+                | jq -er '.snapshot.ghc') || return 1
+        version=$(curl -fsSL --retry 3 "https://www.stackage.org/$snapshot/cabal.config" \
+                    | sed -nE "s/^(constraints:)?[[:space:]]*$pkg ==([0-9.]+),?\$/\\2/p") || return 1
+        [[ -n "$version" ]] && echo "$version $ghc"
+    done
+    return 0
+}
+
 # apt-get install, quietly, only the packages not installed yet.
 cb_apt() {
     local missing=() p
@@ -99,14 +146,15 @@ cb_ghc_drop_gold() {
     done
 }
 
-# The GHC to build a Hackage tool's $VERSION with: its "<version>=<ghc>" entry in the
-# tool's BUILD_GHC, else ghcup's recommended one.
+# The GHC to build Hackage package <package> at $VERSION with: that of the newest Stackage
+# snapshot (LTS <from-lts> on, then nightly) shipping it, else ghcup's recommended one.
+# Each hlint/ormolu release pins one ghc-lib-parser series whose base bounds exclude
+# other GHCs; the snapshot's GHC is one its bounds allow.
+#   cb_build_ghc <package> <from-lts>
 cb_build_ghc() {
-    local pair
-    for pair in ${BUILD_GHC:-}; do
-        [[ "${pair%%=*}" == "$VERSION" ]] && { echo "${pair#*=}"; return; }
-    done
-    echo recommended
+    local ghc
+    ghc=$(cb_stackage_versions "$1" "$2" | awk -v v="$VERSION" '$1 == v && !found++ { print $2 }') || return 1
+    echo "${ghc:-recommended}"
 }
 
 # Install GHC (and the recommended cabal) with ghcup into $WORK/ghcup and put them on

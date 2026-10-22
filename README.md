@@ -57,7 +57,7 @@ so rewrite `/opt/ghc/ghc-<version>` in them to the new folder. Unpacked into a g
 `ocaml` bundles a compiler and a pinned tool set, e.g. `5.5.1-tools1` (`tools1`: Dune 3.24.0,
 UTop 2.17.0, OCamlFormat 0.29.0). `tools/ocaml/tool.conf` owns the tool pins; changing
 these pins requires a new `toolsN` revision, so published bundles keep their identity.
-The weekly run pairs the newest OCaml release with the current pins. If a new compiler is
+The weekly run pairs each tracked OCaml release with the current pins. If a new compiler is
 outside a pinned tool's bounds, that build fails until the pins and `toolsN` are bumped.
 The full opam root, compiler libraries, package state, licenses and `SWITCH-STATE.export`
 are included. Source `env.sh` at its fixed prefix; the export file records the build
@@ -81,7 +81,7 @@ Everything is built by GitHub Actions: **Actions → Build prebuilt tools → Ru
 | Input | Default | Meaning |
 |---|---|---|
 | `tools` | `all` | Folder names under `tools/`, space or comma separated |
-| `versions` | `latest` | Versions to build; explicit versions need a single tool |
+| `versions` | `latest` | Versions to build, `latest`, or `tracked` (every version a tool tracks, below); explicit versions need a single tool |
 | `architectures` | `both` | `both`, `x86_64` or `arm64` (arch-independent tools always build once) |
 | `ubuntu` | `codingbooth` | `codingbooth` reads `UBUNTU_VERSION` from CodingBooth's base Dockerfile; or `26.04` / `24.04` / `22.04` |
 | `publish` | `true` | Upload to the release `<tool>-<version>` |
@@ -91,9 +91,21 @@ The workflow is idempotent: a combination whose asset is already in the release 
 and the run summary lists what was built and what was skipped. When one build fails, the ones
 that succeeded are still published and the run is marked failed.
 
-**New upstream versions.** A scheduled run every Monday builds the latest upstream version of
-every tool (`tools/<tool>/latest.sh`), so a new release is prebuilt within a week and nothing
-else is rebuilt. If a version lookup fails, the run is marked failed. Dependabot keeps the
+**New upstream versions.** A scheduled run every Monday builds every tracked version of every
+tool (`versions=tracked`), so a new release in any tracked line is prebuilt within a week and
+everything already published is skipped. If a version lookup fails, the run is marked failed.
+What each tool tracks comes from upstream, not from a list kept here:
+
+| Tool | Tracked versions |
+|---|---|
+| `ghc` | newest patch of each series from `TRACK_FROM` (9.2) on, from ghcup's metadata |
+| `ihaskell` | newest IHaskell, paired with each tracked GHC its cabal file's `ghc` bound allows |
+| `ocaml` | newest patch of each series from `TRACK_FROM` (5.2) on, plus `TRACK_ALSO` (4.14), with the current `toolsN` |
+| `hlint`, `ormolu` | the versions in each Stackage LTS from `STACKAGE_FROM_LTS` (21) on and in nightly, plus upstream's latest; each builds with its snapshot's GHC |
+| others | the newest upstream release (`latest.sh`) |
+
+The settings named are in each tool's `tool.conf`. Versions that drop out of tracking stay
+published. Dependabot keeps the
 workflow's GitHub Actions current. Bumping the version CodingBooth pins is still a separate,
 deliberate change in CodingBooth.
 
@@ -103,7 +115,8 @@ deliberate change in CodingBooth.
 
 ```sh
 docker run --rm -v "$PWD:/src" -w /src ubuntu:26.04 ./build.sh evcxr_jupyter 0.22.0 dist   # root-owned output in ./dist
-./latest.sh evcxr_jupyter   # on the host; needs curl and jq
+./latest.sh evcxr_jupyter             # on the host; needs curl and jq
+./latest.sh --tracked ghc             # every version the weekly run keeps published
 ```
 
 ## Adding a tool
@@ -117,6 +130,9 @@ Create `tools/<tool>/` with three files:
   from `lib/common.sh`), builds, **smoke-tests**, and copies the files to ship into `$PKG_DIR`.
   Lines appended to `$BUILD_NOTES` end up in `BUILD-INFO.txt`. Ship the upstream license.
 - **`latest.sh`**: prints the newest upstream version. It runs on the host.
+
+An optional **`tracked.sh`** prints every version worth keeping published, one per line,
+for `versions=tracked` and the weekly run; without it a tool tracks `latest.sh`.
 
 A native tool that upstream already ships for some CPUs can set `ARCHES="arm64"` in
 `tool.conf` to build only the missing ones.

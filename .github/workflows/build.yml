@@ -4,8 +4,9 @@ name: Build prebuilt tools
 # one asset per Ubuntu version / architecture (or a single asset for arch-independent
 # tools). Combinations whose asset already exists are skipped unless "force" is set.
 #
-# The weekly schedule builds the newest upstream version of every tool, so a new
-# upstream release gets prebuilt within a week and everything else is skipped.
+# The weekly schedule builds every tracked version of every tool (tools/<tool>/tracked.sh,
+# else the newest upstream release), so a new release in any tracked series gets prebuilt
+# within a week and everything already published is skipped.
 
 on:
   schedule:
@@ -17,7 +18,7 @@ on:
         type: string
         default: all
       versions:
-        description: "Versions to build, space or comma separated, or 'latest'. Explicit versions need a single tool."
+        description: "Versions to build, space or comma separated, 'latest', or 'tracked' (every version a tool tracks). Explicit versions need a single tool."
         type: string
         default: latest
       architectures:
@@ -46,7 +47,7 @@ permissions:
 # holds one pending run and a newer one cancels it, so a single shared group would drop
 # all but the last of several dispatches; keying it lets different builds run side by side.
 concurrency:
-  group: build-prebuilt-${{ inputs.tools || 'all' }}-${{ inputs.versions || 'latest' }}
+  group: build-prebuilt-${{ inputs.tools || 'all' }}-${{ inputs.versions || 'tracked' }}
   cancel-in-progress: false
 
 jobs:
@@ -65,9 +66,10 @@ jobs:
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
-          # A scheduled run has no inputs; these fall back to the dispatch defaults.
+          # A scheduled run has no inputs; these fall back to the dispatch defaults, except
+          # that it builds every tracked version.
           TOOLS: ${{ inputs.tools || 'all' }}
-          VERSIONS: ${{ inputs.versions || 'latest' }}
+          VERSIONS: ${{ inputs.versions || 'tracked' }}
           ARCHITECTURES: ${{ inputs.architectures || 'both' }}
           UBUNTU: ${{ inputs.ubuntu || 'codingbooth' }}
           FORCE: ${{ inputs.force || false }}
@@ -93,7 +95,7 @@ jobs:
           done
 
           requested=(${VERSIONS//,/ })
-          if [[ "${requested[*]}" != latest ]] && (( ${#tools[@]} != 1 )); then
+          if [[ "${requested[*]}" != latest && "${requested[*]}" != tracked ]] && (( ${#tools[@]} != 1 )); then
             echo "::error::Explicit versions need exactly one tool (got: ${tools[*]})"; exit 1
           fi
 
@@ -117,14 +119,15 @@ jobs:
             # ARCHES in tool.conf narrows a native tool to the CPUs upstream doesn't cover.
             only=$(source "tools/$tool/tool.conf" && echo "${ARCHES:-}")
             versions=("${requested[@]}")
-            if [[ "${versions[*]}" == latest ]]; then
-              if ! v=$(./latest.sh "$tool"); then
-                echo "::error::Could not look up the latest version of $tool"
-                echo "| $tool | ? | | | latest-version lookup failed |" >> "$GITHUB_STEP_SUMMARY"
+            if [[ "${versions[*]}" == latest || "${versions[*]}" == tracked ]]; then
+              lookup=(); [[ "${versions[*]}" == tracked ]] && lookup=(--tracked)
+              if ! v=$(./latest.sh "${lookup[@]}" "$tool"); then
+                echo "::error::Could not look up the ${versions[*]} versions of $tool"
+                echo "| $tool | ? | | | ${versions[*]}-version lookup failed |" >> "$GITHUB_STEP_SUMMARY"
                 lookup_failed=true
                 continue
               fi
-              versions=("$v")
+              versions=($v)
             fi
             archs=()
             for a in "${native_archs[@]}"; do
@@ -295,7 +298,7 @@ jobs:
           FAILED: ${{ needs.plan.outputs.lookup_failed }}
         run: |
           if [[ "$FAILED" == true ]]; then
-            echo "::error::At least one tool's latest version could not be looked up; see the plan job."
+            echo "::error::At least one tool's versions could not be looked up; see the plan job."
             exit 1
           fi
-          echo "All latest-version lookups succeeded."
+          echo "All version lookups succeeded."
