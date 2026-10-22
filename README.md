@@ -99,7 +99,7 @@ What each tool tracks comes from upstream, not from a list kept here:
 | Tool | Tracked versions |
 |---|---|
 | `ghc` | newest patch of each series from `TRACK_FROM` (9.2) on, from ghcup's metadata |
-| `ihaskell` | newest IHaskell, paired with each tracked GHC its cabal file's `ghc` bound allows |
+| `ihaskell` | newest IHaskell, paired with each tracked GHC from `TRACK_FROM_GHC` (9.4) on that its cabal file's `ghc` bound allows |
 | `ocaml` | newest patch of each series from `TRACK_FROM` (5.2) on, plus `TRACK_ALSO` (4.14), with the current `toolsN` |
 | `hlint`, `ormolu` | the versions in each Stackage LTS from `STACKAGE_FROM_LTS` (21) on and in nightly, plus upstream's latest; each builds with its snapshot's GHC |
 | others | the newest upstream release (`latest.sh`) |
