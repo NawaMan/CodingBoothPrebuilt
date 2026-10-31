@@ -23,6 +23,16 @@ step() {
     echo "==> $1"; shift
     (cd "$SRC" && "$@") > "$log" 2>&1 || { tail -80 "$log"; exit 1; }
 }
+# From 2.4, lib/nimhcr.nim is a compile error on linux arm64 (hot code reloading has no
+# jump table there), and koch docs runs `nim doc` on every module under lib/. Leave that
+# one page out, as the docs already do for include files. koch compiles kochdocs.nim in,
+# so this comes before koch is built.
+if [[ "$(cb_arch)" == arm64 ]] && grep -q 'no jump table' "$SRC/lib/nimhcr.nim" 2>/dev/null; then
+    sed -i 's|^  ignoredModules = """$|&\nlib/nimhcr.nim|' "$SRC/tools/kochdocs.nim"
+    grep -qx 'lib/nimhcr.nim' "$SRC/tools/kochdocs.nim" \
+        || { echo "error: could not leave lib/nimhcr.nim out of koch docs" >&2; exit 1; }
+    echo "docs:         without nimhcr.html (no hot code reloading on linux arm64)" >> "$BUILD_NOTES"
+fi
 step "Building the C-sources compiler" make "-j$(nproc)" CC=gcc
 step "Building koch"                   nim c koch
 step "Building the compiler"           ./koch boot -d:release --skipUserCfg:off
