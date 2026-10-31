@@ -102,7 +102,7 @@ What each tool tracks comes from upstream, not from a list kept here:
 | `ghc` | newest patch of each series from `TRACK_FROM` (9.2) on, from ghcup's metadata |
 | `ihaskell` | newest IHaskell, paired with each tracked GHC from `TRACK_FROM_GHC` (9.4) on that its cabal file's `ghc` bound allows |
 | `ocaml` | newest patch of each series from `TRACK_FROM` (5.2) on, plus `TRACK_ALSO` (4.14), with the current `toolsN` |
-| `nim` | newest patch of each series from `TRACK_FROM` (2.0) on, from the `nim-lang/Nim` tags that have a nim-lang.org source tarball |
+| `nim` | newest patch of each series from `TRACK_FROM` (2.0) on, plus `TRACK_ALSO` (1.6), from the `nim-lang/Nim` tags that have a nim-lang.org source tarball |
 | `hlint`, `ormolu` | the versions in each Stackage LTS from `STACKAGE_FROM_LTS` (21) on and in nightly, plus upstream's latest; each builds with its snapshot's GHC |
 | others | the newest upstream release (`latest.sh`) |
 
