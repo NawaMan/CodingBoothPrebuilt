@@ -19,6 +19,7 @@ it is useful outside CodingBooth too.
 | `hlint` | Haskell linter; upstream ships x86_64 only | arm64 only | `hlint` plus `data/`, like upstream's release |
 | `ormolu` | Haskell formatter; upstream ships x86_64 only | arm64 only | `ormolu` |
 | `nim` | Nim compiler with nimble, atlas, nimsuggest, nimgrep, nimpretty; nim-lang.org ships x86_64 only | arm64 only | upstream's `nim-<version>-linux_x64.tar.xz` tree (`bin/`, `lib/`, `config/`, `pkgs/`, `doc/`) |
+| `goose-lang` | Goose language compiler (aardappel/goose) with its packages, stdlib and TinyCC runtime; upstream ships linux x64 only | arm64 only | upstream's `goose-v<version>-linux-x64.tar.gz` tree (`goose`, `stdlib/`, `tcclib/`, `docs/`, `samples/`, ...) |
 | `scratch-gui` | Scratch 3 editor, static web files (upstream archived at 5.3.0; AGPL-3.0) | once, any arch | contents of `build/`, plus `LICENSE` and `SOURCE.txt` |
 | `excalidraw` | Excalidraw self-hosted app, static web files | once, any arch | contents of `excalidraw-app/build/` |
 
@@ -103,6 +104,7 @@ What each tool tracks comes from upstream, not from a list kept here:
 | `ihaskell` | newest IHaskell, paired with each tracked GHC from `TRACK_FROM_GHC` (9.4) on that its cabal file's `ghc` bound allows |
 | `ocaml` | newest patch of each series from `TRACK_FROM` (5.2) on, plus `TRACK_ALSO` (4.14), with the current `toolsN` |
 | `nim` | newest patch of each series from `TRACK_FROM` (2.0) on, plus `TRACK_ALSO` (1.6), from the `nim-lang/Nim` tags that have a nim-lang.org source tarball |
+| `goose-lang` | the newest `TRACK_LATEST` (3) releases |
 | `hlint`, `ormolu` | the versions in each Stackage LTS from `STACKAGE_FROM_LTS` (21) on and in nightly, plus upstream's latest; each builds with its snapshot's GHC |
 | others | the newest upstream release (`latest.sh`) |
 
