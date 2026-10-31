@@ -16,10 +16,10 @@ it is useful outside CodingBooth too.
 | `evcxr_jupyter` | Rust Jupyter kernel (upstream ships no linux arm64) | per Ubuntu + arch | `bin/evcxr_jupyter` |
 | `ghc` | GHC as ghcup installs it (whose own install step takes 6-7 minutes in a Docker build) | per Ubuntu + arch | ghcup's `.ghcup/ghc/<version>/` (`bin/`, `lib/`, `share/`), built at `/opt/ghc/ghc-<version>` |
 | `ihaskell` | Haskell Jupyter kernel, for one exact GHC; version is `<ihaskell>-ghc<ghc>` | per Ubuntu + arch | `bin/ihaskell` plus its data files under `store/`; extract to `/opt/ihaskell/ihaskell-<version>` |
-| `hlint` | Haskell linter; upstream ships x86_64 only | arm64 only | `hlint` plus `data/`, like upstream's release |
-| `ormolu` | Haskell formatter; upstream ships x86_64 only | arm64 only | `ormolu` |
-| `nim` | Nim compiler with nimble, atlas, nimsuggest, nimgrep, nimpretty; nim-lang.org ships x86_64 only | arm64 only | upstream's `nim-<version>-linux_x64.tar.xz` tree (`bin/`, `lib/`, `config/`, `pkgs/`, `doc/`) |
-| `goose-lang` | Goose language compiler (aardappel/goose) with its packages, stdlib and TinyCC runtime; upstream ships linux x64 only | arm64 only | upstream's `goose-v<version>-linux-x64.tar.gz` tree (`goose`, `stdlib/`, `tcclib/`, `docs/`, `samples/`, ...) |
+| `hlint` | Haskell linter; upstream ships x86_64 only | per Ubuntu + arch | `hlint` plus `data/`, like upstream's release |
+| `ormolu` | Haskell formatter; upstream ships x86_64 only | per Ubuntu + arch | `ormolu` |
+| `nim` | Nim compiler with nimble, atlas, nimsuggest, nimgrep, nimpretty; nim-lang.org ships x86_64 only | per Ubuntu + arch | upstream's `nim-<version>-linux_x64.tar.xz` tree (`bin/`, `lib/`, `config/`, `pkgs/`, `doc/`) |
+| `goose-lang` | Goose language compiler (aardappel/goose) with its packages, stdlib and TinyCC runtime; upstream ships linux x64 only | per Ubuntu + arch | upstream's `goose-v<version>-linux-x64.tar.gz` tree (`goose`, `stdlib/`, `tcclib/`, `docs/`, `samples/`, ...) |
 | `scratch-gui` | Scratch 3 editor, static web files (upstream archived at 5.3.0; AGPL-3.0) | once, any arch | contents of `build/`, plus `LICENSE` and `SOURCE.txt` |
 | `excalidraw` | Excalidraw self-hosted app, static web files | once, any arch | contents of `excalidraw-app/build/` |
 
@@ -138,8 +138,9 @@ Create `tools/<tool>/` with three files:
 An optional **`tracked.sh`** prints every version worth keeping published, one per line,
 for `versions=tracked` and the weekly run; without it a tool tracks `latest.sh`.
 
-A native tool that upstream already ships for some CPUs can set `ARCHES="arm64"` in
-`tool.conf` to build only the missing ones.
+A native tool builds both CPUs even where upstream ships one, so a setup downloads every
+native tool from here on either. `ARCHES="arm64"` in `tool.conf` narrows it to the listed
+ones; no tool does.
 
 ## Notes
 
