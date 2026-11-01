@@ -16,6 +16,7 @@ it is useful outside CodingBooth too.
 | `evcxr_jupyter` | Rust Jupyter kernel (upstream ships no linux arm64) | per Ubuntu + arch | `bin/evcxr_jupyter` |
 | `ghc` | GHC as ghcup installs it (whose own install step takes 6-7 minutes in a Docker build) | per Ubuntu + arch | ghcup's `.ghcup/ghc/<version>/` (`bin/`, `lib/`, `share/`), built at `/opt/ghc/ghc-<version>` |
 | `ihaskell` | Haskell Jupyter kernel, for one exact GHC; version is `<ihaskell>-ghc<ghc>` | per Ubuntu + arch | `bin/ihaskell` plus its data files under `store/`; extract to `/opt/ihaskell/ihaskell-<version>` |
+| `hls` | Haskell Language Server, for one exact GHC; version is `<hls>-ghc<ghc>` (ghcup's arm64 builds don't match ghcup's GHC) | per Ubuntu + arch | upstream's installed bindist, as in ghcup's `.ghcup/hls/<hls>/`: `bin/haskell-language-server-<ghc>`, `bin/haskell-language-server-wrapper`, `lib/haskell-language-server-<hls>/` |
 | `hlint` | Haskell linter; upstream ships x86_64 only | per Ubuntu + arch | `hlint` plus `data/`, like upstream's release |
 | `ormolu` | Haskell formatter; upstream ships x86_64 only | per Ubuntu + arch | `ormolu` |
 | `nim` | Nim compiler with nimble, atlas, nimsuggest, nimgrep, nimpretty; nim-lang.org ships x86_64 only | per Ubuntu + arch | upstream's `nim-<version>-linux_x64.tar.xz` tree (`bin/`, `lib/`, `config/`, `pkgs/`, `doc/`) |
@@ -60,11 +61,15 @@ so rewrite `/opt/ghc/ghc-<version>` in them to the new folder. Unpacked into a g
 `.ghcup/ghc/<version>`, ghcup lists it as installed and `ghcup set ghc <version>` works.
 
 `heidisql` brings its own `libQt6Pas` but uses Ubuntu's Qt6: install `libqt6widgets6`,
-`libqt6printsupport6` and `qt6-qpa-plugins`. It finds database client libraries through `ldconfig`, so install
-the ones its sessions use (`libmariadb3`, `libpq5`, `libsqlite3-0`, `libsybdb5`,
-`libfbclient2`). It builds with the Lazarus release in `tools/heidisql/tool.conf`, which
+`libqt6printsupport6` and `qt6-qpa-plugins`. It finds database client libraries through
+`ldconfig`, so install the ones its sessions use (`libmariadb3`, `libpq5`, `libsqlite3-0`,
+`libsybdb5`, `libfbclient2`). It builds with the Lazarus release in `tools/heidisql/tool.conf`, which
 must match the patches upstream keeps in `extra/lazarus-patches/<version>`. When upstream
 moves to a new Lazarus, the build fails until that setting is bumped.
+
+`hls` goes into a ghcup tree too: unpack each GHC's asset of one HLS into the same
+`.ghcup/hls/<hls>/`, then `ghcup set hls <hls>`. Each server is built against ghcup's
+binary distribution of its GHC (what the `ghc` tool ships), and runs only on that GHC.
 
 `ocaml` bundles a compiler and a pinned tool set, e.g. `5.5.1-tools1` (`tools1`: Dune 3.24.0,
 UTop 2.17.0, OCamlFormat 0.29.0). `tools/ocaml/tool.conf` owns the tool pins; changing
@@ -116,6 +121,7 @@ What each tool tracks comes from upstream, not from a list kept here:
 | `nim` | newest patch of each series from `TRACK_FROM` (2.0) on, plus `TRACK_ALSO` (1.6), from the `nim-lang/Nim` tags that have a nim-lang.org source tarball |
 | `goose-lang` | the newest `TRACK_LATEST` (3) releases |
 | `elm` | 0.19.1 only (`tracked.sh`): later releases have official binaries for both CPUs |
+| `hls` | ghcup's recommended and latest HLS, each paired with every tracked GHC of a series its cabal file's `tested-with` names |
 | `hlint`, `ormolu` | the versions in each Stackage LTS from `STACKAGE_FROM_LTS` (21) on and in nightly, plus upstream's latest; each builds with its snapshot's GHC |
 | others | the newest upstream release (`latest.sh`) |
 
