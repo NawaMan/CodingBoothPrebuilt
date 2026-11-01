@@ -20,6 +20,7 @@ it is useful outside CodingBooth too.
 | `ormolu` | Haskell formatter; upstream ships x86_64 only | per Ubuntu + arch | `ormolu` |
 | `nim` | Nim compiler with nimble, atlas, nimsuggest, nimgrep, nimpretty; nim-lang.org ships x86_64 only | per Ubuntu + arch | upstream's `nim-<version>-linux_x64.tar.xz` tree (`bin/`, `lib/`, `config/`, `pkgs/`, `doc/`) |
 | `goose-lang` | Goose language compiler (aardappel/goose) with its packages, stdlib and TinyCC runtime; upstream ships linux x64 only | per Ubuntu + arch | upstream's `goose-v<version>-linux-x64.tar.gz` tree (`goose`, `stdlib/`, `tcclib/`, `docs/`, `samples/`, ...) |
+| `sqls` | SQL language server; upstream ships linux amd64 only | per Ubuntu + arch | `sqls`, like upstream's release |
 | `scratch-gui` | Scratch 3 editor, static web files (upstream archived at 5.3.0; AGPL-3.0) | once, any arch | contents of `build/`, plus `LICENSE` and `SOURCE.txt` |
 | `excalidraw` | Excalidraw self-hosted app, static web files | once, any arch | contents of `excalidraw-app/build/` |
 
