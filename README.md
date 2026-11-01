@@ -24,6 +24,10 @@ it is useful outside CodingBooth too.
 | `sqls` | SQL language server; upstream ships linux amd64 only | per Ubuntu + arch | `sqls`, like upstream's release |
 | `heidisql` | HeidiSQL SQL client, its Qt6 Linux build, with the `libQt6Pas` it needs; upstream ships a .deb for amd64 only | per Ubuntu + arch | upstream's `build-qt6-v<version>.tgz` tree (`heidisql`, `locale/`, `*.ini`, `heidisql.png`) plus `lib/libQt6Pas.so.6` |
 | `elm` | Elm compiler 0.19.1, built with GHC 9.2.8 (`ghc-9.2.patch`); upstream ships 0.19.1 for linux x86_64 only (0.19.2 on ships both CPUs) | per Ubuntu + arch | `elm` |
+| `gnupg` | GnuPG 2.5 (gpg, gpg-agent, gpgsm, dirmngr, keyboxd, ...), from the release tarball checked against the GnuPG release keys; upstream ships source only | per Ubuntu + arch | an installed `/usr/local` tree (`bin/`, `sbin/`, `libexec/`, `share/`) plus `RUNTIME-DEPS.txt` and `COPYING` |
+| `protoc-gen-prost` | protoc plugin generating Prost! message code; upstream publishes the crate only | per Ubuntu + arch | `bin/protoc-gen-prost` |
+| `protoc-gen-tonic` | protoc plugin generating Tonic gRPC service code; upstream publishes the crate only | per Ubuntu + arch | `bin/protoc-gen-tonic` |
+| `gonb` | GoNB, the Go Jupyter kernel, built with cgo off; upstream publishes source only | per Ubuntu + arch | `bin/gonb` |
 | `scratch-gui` | Scratch 3 editor, static web files (upstream archived at 5.3.0; AGPL-3.0) | once, any arch | contents of `build/`, plus `LICENSE` and `SOURCE.txt` |
 | `excalidraw` | Excalidraw self-hosted app, static web files | once, any arch | contents of `excalidraw-app/build/` |
 
@@ -66,6 +70,15 @@ so rewrite `/opt/ghc/ghc-<version>` in them to the new folder. Unpacked into a g
 `libsybdb5`, `libfbclient2`). It builds with the Lazarus release in `tools/heidisql/tool.conf`, which
 must match the patches upstream keeps in `extra/lazarus-patches/<version>`. When upstream
 moves to a new Lazarus, the build fails until that setting is bumped.
+
+`gnupg` runs only from `/usr/local`: it is built with `--prefix=/usr/local --sysconfdir=/etc
+--localstatedir=/var`. Copy `bin/`, `sbin/`, `libexec/` and `share/` there and install the Ubuntu
+packages listed in `RUNTIME-DEPS.txt` (Ubuntu's own `gnupg` already pulls in most of them).
+`BUILD-INFO.txt` names the release key whose signature the tarball carried.
+
+`gonb` needs, at run time, the booth's own `go` and `goimports` on PATH; neither is bundled.
+`protoc-gen-tonic` inserts its code into the files `protoc-gen-prost` writes, so the two run
+together (`--prost_out=... --tonic_out=...`).
 
 `hls` goes into a ghcup tree too: unpack each GHC's asset of one HLS into the same
 `.ghcup/hls/<hls>/`, then `ghcup set hls <hls>`. Each server is built against ghcup's
