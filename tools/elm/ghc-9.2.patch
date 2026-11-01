@@ -1,0 +1,148 @@
+--- a/compiler/src/Data/Name.hs
++++ b/compiler/src/Data/Name.hs
+@@ -241,7 +241,7 @@
+   else
+     let
+       len# = sizeofByteArray# ba#
+-      end# = indexWord8Array# ba# (len# -# 1#)
++      end# = word8ToWord# (indexWord8Array# ba# (len# -# 1#))
+     in
+     if isTrue# (leWord# 0x30## end#) && isTrue# (leWord# end# 0x39##) then
+       runST
+@@ -316,11 +316,11 @@
+         ST $ \s ->
+           case newByteArray# (len# +# 3#) s of
+             (# s, mba# #) ->
+-              case writeWord8Array# mba# 0# 0x5F## {-_-} s of
++              case writeWord8Array# mba# 0# (wordToWord8# 0x5F##) {-_-} s of
+                 s ->
+-                  case writeWord8Array# mba# 1# 0x4D## {-M-} s of
++                  case writeWord8Array# mba# 1# (wordToWord8# 0x4D##) {-M-} s of
+                     s ->
+-                      case writeWord8Array# mba# 2# 0x24## {-$-} s of
++                      case writeWord8Array# mba# 2# (wordToWord8# 0x24##) {-$-} s of
+                         s ->
+                           case copyByteArray# ba# 0# mba# 3# len# s of
+                             s ->
+--- a/compiler/src/Data/Utf8.hs
++++ b/compiler/src/Data/Utf8.hs
+@@ -106,13 +106,13 @@
+ 
+ contains :: Word8 -> Utf8 t -> Bool
+ contains (W8# word#) (Utf8 ba#) =
+-  containsHelp word# ba# 0# (sizeofByteArray# ba#)
++  containsHelp (word8ToWord# word#) ba# 0# (sizeofByteArray# ba#)
+ 
+ 
+ containsHelp :: Word# -> ByteArray# -> Int# -> Int# -> Bool
+ containsHelp word# ba# !offset# len# =
+   if isTrue# (offset# <# len#) then
+-    if isTrue# (eqWord# word# (indexWord8Array# ba# offset#))
++    if isTrue# (eqWord# word# (word8ToWord# (indexWord8Array# ba# offset#)))
+       then True
+       else containsHelp word# ba# (offset# +# 1#) len#
+   else
+@@ -145,7 +145,7 @@
+     False
+   else
+     let
+-      !w# = indexWord8Array# ba# 0#
++      !w# = word8ToWord# (indexWord8Array# ba# 0#)
+       !char
+         | isTrue# (ltWord# w# 0xC0##) = C# (chr# (word2Int# w#))
+         | isTrue# (ltWord# w# 0xE0##) = chr2 ba# 0# w#
+@@ -164,7 +164,7 @@
+   let len# = sizeofByteArray# ba# in
+   isTrue# (len# ># 0#)
+   &&
+-  isTrue# (eqWord# w# (indexWord8Array# ba# (len# -# 1#)))
++  isTrue# (eqWord# (word8ToWord# w#) (word8ToWord# (indexWord8Array# ba# (len# -# 1#))))
+ 
+ 
+ 
+@@ -173,7 +173,7 @@
+ 
+ split :: Word8 -> Utf8 t -> [Utf8 t]
+ split (W8# divider#) str@(Utf8 ba#) =
+-  splitHelp str 0 (findDividers divider# ba# 0# (sizeofByteArray# ba#) [])
++  splitHelp str 0 (findDividers (word8ToWord# divider#) ba# 0# (sizeofByteArray# ba#) [])
+ 
+ 
+ splitHelp :: Utf8 t -> Int -> [Int] -> [Utf8 t]
+@@ -190,7 +190,7 @@
+ findDividers divider# ba# !offset# len# revOffsets =
+   if isTrue# (offset# <# len#) then
+     findDividers divider# ba# (offset# +# 1#) len# $
+-      if isTrue# (eqWord# divider# (indexWord8Array# ba# offset#))
++      if isTrue# (eqWord# divider# (word8ToWord# (indexWord8Array# ba# offset#)))
+       then I# offset# : revOffsets
+       else revOffsets
+   else
+@@ -351,7 +351,7 @@
+     []
+   else
+     let
+-      !w# = indexWord8Array# ba# offset#
++      !w# = word8ToWord# (indexWord8Array# ba# offset#)
+       !(# char, width# #)
+         | isTrue# (ltWord# w# 0xC0##) = (# C# (chr# (word2Int# w#)), 1# #)
+         | isTrue# (ltWord# w# 0xE0##) = (# chr2 ba# offset# w#, 2# #)
+@@ -368,7 +368,7 @@
+ chr2 ba# offset# firstWord# =
+   let
+     !i1# = word2Int# firstWord#
+-    !i2# = word2Int# (indexWord8Array# ba# (offset# +# 1#))
++    !i2# = word2Int# (word8ToWord# (indexWord8Array# ba# (offset# +# 1#)))
+     !c1# = uncheckedIShiftL# (i1# -# 0xC0#) 6#
+     !c2# = i2# -# 0x80#
+   in
+@@ -380,8 +380,8 @@
+ chr3 ba# offset# firstWord# =
+   let
+     !i1# = word2Int# firstWord#
+-    !i2# = word2Int# (indexWord8Array# ba# (offset# +# 1#))
+-    !i3# = word2Int# (indexWord8Array# ba# (offset# +# 2#))
++    !i2# = word2Int# (word8ToWord# (indexWord8Array# ba# (offset# +# 1#)))
++    !i3# = word2Int# (word8ToWord# (indexWord8Array# ba# (offset# +# 2#)))
+     !c1# = uncheckedIShiftL# (i1# -# 0xE0#) 12#
+     !c2# = uncheckedIShiftL# (i2# -# 0x80#) 6#
+     !c3# = i3# -# 0x80#
+@@ -394,9 +394,9 @@
+ chr4 ba# offset# firstWord# =
+   let
+     !i1# = word2Int# firstWord#
+-    !i2# = word2Int# (indexWord8Array# ba# (offset# +# 1#))
+-    !i3# = word2Int# (indexWord8Array# ba# (offset# +# 2#))
+-    !i4# = word2Int# (indexWord8Array# ba# (offset# +# 3#))
++    !i2# = word2Int# (word8ToWord# (indexWord8Array# ba# (offset# +# 1#)))
++    !i3# = word2Int# (word8ToWord# (indexWord8Array# ba# (offset# +# 2#)))
++    !i4# = word2Int# (word8ToWord# (indexWord8Array# ba# (offset# +# 3#)))
+     !c1# = uncheckedIShiftL# (i1# -# 0xF0#) 18#
+     !c2# = uncheckedIShiftL# (i2# -# 0x80#) 12#
+     !c3# = uncheckedIShiftL# (i3# -# 0x80#) 6#
+@@ -471,7 +471,7 @@
+ escape :: Word8 -> Word8 -> Ptr a -> Utf8 t -> Int -> Int -> Int -> IO ()
+ escape before@(W8# before#) after ptr name@(Utf8 ba#) offset@(I# offset#) len@(I# len#) i@(I# i#) =
+   if isTrue# (i# <# len#) then
+-    if isTrue# (eqWord# before# (indexWord8Array# ba# (offset# +# i#)))
++    if isTrue# (eqWord# (word8ToWord# before#) (word8ToWord# (indexWord8Array# ba# (offset# +# i#))))
+     then
+       do  writeWordToPtr ptr i after
+           escape before after ptr name offset len (i + 1)
+--- a/compiler/src/Parse/Variable.hs
++++ b/compiler/src/Parse/Variable.hs
+@@ -21,7 +21,7 @@
+ import qualified Data.Set as Set
+ import Data.Word (Word8)
+ import Foreign.Ptr (Ptr, plusPtr)
+-import GHC.Exts (Char(C#), Int#, (+#), (-#), chr#, uncheckedIShiftL#, word2Int#)
++import GHC.Exts (Char(C#), Int#, (+#), (-#), chr#, uncheckedIShiftL#, word2Int#, word8ToWord#)
+ import GHC.Word (Word8(W8#))
+ 
+ import qualified AST.Source as Src
+@@ -384,4 +384,4 @@
+ 
+ unpack :: Word8 -> Int#
+ unpack (W8# word#) =
+-  word2Int# word#
++  word2Int# (word8ToWord# word#)

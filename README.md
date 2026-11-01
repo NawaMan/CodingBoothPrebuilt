@@ -22,7 +22,7 @@ it is useful outside CodingBooth too.
 | `goose-lang` | Goose language compiler (aardappel/goose) with its packages, stdlib and TinyCC runtime; upstream ships linux x64 only | per Ubuntu + arch | upstream's `goose-v<version>-linux-x64.tar.gz` tree (`goose`, `stdlib/`, `tcclib/`, `docs/`, `samples/`, ...) |
 | `sqls` | SQL language server; upstream ships linux amd64 only | per Ubuntu + arch | `sqls`, like upstream's release |
 | `heidisql` | HeidiSQL SQL client, its Qt6 Linux build, with the `libQt6Pas` it needs; upstream ships a .deb for amd64 only | per Ubuntu + arch | upstream's `build-qt6-v<version>.tgz` tree (`heidisql`, `locale/`, `*.ini`, `heidisql.png`) plus `lib/libQt6Pas.so.6` |
-| `elm` | Elm compiler 0.19.1, built with GHC 9.0.2; upstream ships 0.19.1 for linux x86_64 only (0.19.2 on ships both CPUs) | per Ubuntu + arch | `elm` |
+| `elm` | Elm compiler 0.19.1, built with GHC 9.2.8 (`ghc-9.2.patch`); upstream ships 0.19.1 for linux x86_64 only (0.19.2 on ships both CPUs) | per Ubuntu + arch | `elm` |
 | `scratch-gui` | Scratch 3 editor, static web files (upstream archived at 5.3.0; AGPL-3.0) | once, any arch | contents of `build/`, plus `LICENSE` and `SOURCE.txt` |
 | `excalidraw` | Excalidraw self-hosted app, static web files | once, any arch | contents of `excalidraw-app/build/` |
 

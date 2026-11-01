@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
-# Elm from its release tag, built with cabal against a ghcup GHC (tool.conf), then used to
-# compile a small application. Called by ../../build.sh.
+# Elm from its release tag, patched for GHC 9.2 (ghc-9.2.patch) and built with cabal against
+# a ghcup GHC (tool.conf), then used to compile a small application. Called by ../../build.sh.
 set -euo pipefail
 source "$ROOT/lib/common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/tool.conf"
 
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
-cb_apt git
+cb_apt git patch
 cb_install_ghc "$BUILD_GHC"
 
 SRC="$WORK/elm"
 echo "==> Cloning elm/compiler $VERSION"
 git -c advice.detachedHead=false clone -q --depth 1 --branch "$VERSION" https://github.com/elm/compiler "$SRC"
+patch -d "$SRC" -p1 --quiet < "$(dirname "${BASH_SOURCE[0]}")/ghc-9.2.patch"
 # worker/ is the package site's own executable, not part of the compiler.
 {
     echo "packages: ."
