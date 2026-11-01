@@ -21,6 +21,7 @@ it is useful outside CodingBooth too.
 | `nim` | Nim compiler with nimble, atlas, nimsuggest, nimgrep, nimpretty; nim-lang.org ships x86_64 only | per Ubuntu + arch | upstream's `nim-<version>-linux_x64.tar.xz` tree (`bin/`, `lib/`, `config/`, `pkgs/`, `doc/`) |
 | `goose-lang` | Goose language compiler (aardappel/goose) with its packages, stdlib and TinyCC runtime; upstream ships linux x64 only | per Ubuntu + arch | upstream's `goose-v<version>-linux-x64.tar.gz` tree (`goose`, `stdlib/`, `tcclib/`, `docs/`, `samples/`, ...) |
 | `sqls` | SQL language server; upstream ships linux amd64 only | per Ubuntu + arch | `sqls`, like upstream's release |
+| `heidisql` | HeidiSQL SQL client, its Qt6 Linux build, with the `libQt6Pas` it needs; upstream ships a .deb for amd64 only | per Ubuntu + arch | upstream's `build-qt6-v<version>.tgz` tree (`heidisql`, `locale/`, `*.ini`, `heidisql.png`) plus `lib/libQt6Pas.so.6` |
 | `scratch-gui` | Scratch 3 editor, static web files (upstream archived at 5.3.0; AGPL-3.0) | once, any arch | contents of `build/`, plus `LICENSE` and `SOURCE.txt` |
 | `excalidraw` | Excalidraw self-hosted app, static web files | once, any arch | contents of `excalidraw-app/build/` |
 
@@ -56,6 +57,13 @@ named in its version (installed by ghcup) and is registered with
 `ghc` unpacks anywhere, with one fix-up: the wrapper scripts in `bin/` name the build prefix,
 so rewrite `/opt/ghc/ghc-<version>` in them to the new folder. Unpacked into a ghcup tree's
 `.ghcup/ghc/<version>`, ghcup lists it as installed and `ghcup set ghc <version>` works.
+
+`heidisql` brings its own `libQt6Pas` but uses Ubuntu's Qt6: install `libqt6widgets6`
+and `qt6-qpa-plugins`. It finds database client libraries through `ldconfig`, so install
+the ones its sessions use (`libmariadb3`, `libpq5`, `libsqlite3-0`, `libsybdb5`,
+`libfbclient2`). It builds with the Lazarus release in `tools/heidisql/tool.conf`, which
+must match the patches upstream keeps in `extra/lazarus-patches/<version>`. When upstream
+moves to a new Lazarus, the build fails until that setting is bumped.
 
 `ocaml` bundles a compiler and a pinned tool set, e.g. `5.5.1-tools1` (`tools1`: Dune 3.24.0,
 UTop 2.17.0, OCamlFormat 0.29.0). `tools/ocaml/tool.conf` owns the tool pins; changing
