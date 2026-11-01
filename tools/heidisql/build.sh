@@ -89,6 +89,6 @@ qt=$(dpkg-query -W -f='${Version}' libqt6core6t64)
     echo "source:       https://github.com/HeidiSQL/HeidiSQL at v$VERSION ($(git -C "$SRC" rev-parse --short HEAD), build $buildnr)"
     echo "compiler:     Lazarus $LAZARUS_VERSION with HeidiSQL's patches, $(fpc -iV | head -1 | sed 's/^/FPC /'), Qt ${qt%%+*} (Ubuntu)"
     echo "libQt6Pas:    lib/, from Lazarus $LAZARUS_VERSION's lcl/interfaces/qt6/cbindings"
-    echo "runtime libs: libqt6widgets6 libqt6gui6 libqt6core6t64 qt6-qpa-plugins (apt); database"
+    echo "runtime libs: libqt6widgets6 libqt6gui6 libqt6core6t64 libqt6printsupport6 qt6-qpa-plugins (apt); database"
     echo "              clients as needed: libmariadb3 libpq5 libsqlite3-0 libsybdb5 libfbclient2"
 } >> "$BUILD_NOTES"

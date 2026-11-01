@@ -58,8 +58,8 @@ named in its version (installed by ghcup) and is registered with
 so rewrite `/opt/ghc/ghc-<version>` in them to the new folder. Unpacked into a ghcup tree's
 `.ghcup/ghc/<version>`, ghcup lists it as installed and `ghcup set ghc <version>` works.
 
-`heidisql` brings its own `libQt6Pas` but uses Ubuntu's Qt6: install `libqt6widgets6`
-and `qt6-qpa-plugins`. It finds database client libraries through `ldconfig`, so install
+`heidisql` brings its own `libQt6Pas` but uses Ubuntu's Qt6: install `libqt6widgets6`,
+`libqt6printsupport6` and `qt6-qpa-plugins`. It finds database client libraries through `ldconfig`, so install
 the ones its sessions use (`libmariadb3`, `libpq5`, `libsqlite3-0`, `libsybdb5`,
 `libfbclient2`). It builds with the Lazarus release in `tools/heidisql/tool.conf`, which
 must match the patches upstream keeps in `extra/lazarus-patches/<version>`. When upstream
