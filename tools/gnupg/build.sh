@@ -12,7 +12,20 @@ RELEASE_KEYS=(
     AC8E115BF73E2D8D47FA9908E98E9B2D19C6C8BD   # NIIBE Yutaka (GnuPG Release Key)
 )
 
-cb_apt bzip2 gcc make pkgconf gnupg \
+# Upstream fixes a release lacks, "<commit> <sha256 of its .patch>" each, as Homebrew's formula
+# applies them. Keep in step with CodingBooth's variants/base/setups/gnupg--setup.sh.
+PATCHES=()
+case "$VERSION" in
+    2.5.24)
+        # https://dev.gnupg.org/T8469: a secret key imported without a passphrase cannot
+        # decrypt (Homebrew 2.5.24_1).
+        PATCHES=(
+            "42386bcf8861f04c1bdec5cbb139a03da83d8ef9 93817449be3f93dcade3d79960e33e72959f54f95ff6108f22176bef28111f2b"
+            "5523cec6913bcbd1a374d183899a6f298d2c0e32 0a0acd2f7f25723f3f84ec5c4ecf03b786d73ca61c48487d4d00c0559be89d66"
+        ) ;;
+esac
+
+cb_apt bzip2 gcc make patch pkgconf gnupg \
     libgpg-error-dev libgcrypt20-dev libassuan-dev libksba-dev libnpth0-dev \
     libgnutls28-dev libsqlite3-dev libbz2-dev zlib1g-dev libreadline-dev libldap-dev
 
@@ -43,6 +56,16 @@ echo "==> Building"
 tar -xjf "$WORK/$tarball" -C "$WORK"
 SRC="$WORK/gnupg-$VERSION"
 STAGE="$WORK/stage"
+applied=""
+for entry in "${PATCHES[@]}"; do
+    read -r commit sha256 <<< "$entry"
+    cb_fetch "https://github.com/gpg/gnupg/commit/$commit.patch?full_index=1" "$WORK/$commit.patch"
+    echo "$sha256  $WORK/$commit.patch" | sha256sum -c - > /dev/null \
+        || { echo "error: $commit.patch does not match its sha256" >&2; exit 1; }
+    patch -s -d "$SRC" -p1 < "$WORK/$commit.patch"
+    echo "   applied upstream fix ${commit:0:12}"
+    applied+="${applied:+ }${commit:0:12}"
+done
 # --with-pinentry-pgm keeps gpg-agent on /usr/bin/pinentry, the alternative CodingBooth's
 # pinentry setup repoints at a desktop flavour.
 ( cd "$SRC" \
@@ -85,6 +108,16 @@ gpg --quiet --verify "$WORK/msg.sig" "$WORK/msg" 2>/dev/null \
     || { echo "error: verifying a signature failed" >&2; exit 1; }
 echo "   pqc key: encrypt/decrypt and sign/verify round trips work"
 /usr/local/bin/gpgconf --kill all
+# A secret key exported and imported into another home, no passphrase, has to decrypt there
+# (T8469: 2.5.23 and 2.5.24 as released cannot).
+export GNUPGHOME="$WORK/importhome"
+mkdir -m 700 "$GNUPGHOME"
+GNUPGHOME="$WORK/testhome" gpg --armor --export-secret-keys booth@example.com | gpg --quiet --import 2>/dev/null
+/usr/local/bin/gpgconf --homedir "$WORK/testhome" --kill all
+[[ "$(gpg --quiet --decrypt "$WORK/msg.gpg" 2>/dev/null)" == 'hello from a booth' ]] \
+    || { echo "error: an imported secret key cannot decrypt (T8469)" >&2; exit 1; }
+echo "   an imported secret key decrypts"
+/usr/local/bin/gpgconf --kill all
 unset GNUPGHOME
 echo "smoke tests passed"
 
@@ -102,6 +135,7 @@ echo "   runtime packages: $(tr '\n' ' ' < "$PKG_DIR/RUNTIME-DEPS.txt")"
 {
     echo "source:       $base/$tarball"
     echo "signature:    good, by GnuPG release key $trusted"
+    echo "patches:      ${applied:-none}"
     echo "sha256:       $(sha256sum "$WORK/$tarball" | awk '{print $1}')"
     echo "compiler:     $(gcc --version | head -1)"
 } >> "$BUILD_NOTES"

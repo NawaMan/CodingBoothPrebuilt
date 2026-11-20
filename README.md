@@ -76,7 +76,9 @@ moves to a new Lazarus, the build fails until that setting is bumped.
 `gnupg` runs only from `/usr/local`: it is built with `--prefix=/usr/local --sysconfdir=/etc
 --localstatedir=/var`. Copy `bin/`, `sbin/`, `libexec/` and `share/` there and install the Ubuntu
 packages listed in `RUNTIME-DEPS.txt` (Ubuntu's own `gnupg` already pulls in most of them).
-`BUILD-INFO.txt` names the release key whose signature the tarball carried.
+`BUILD-INFO.txt` names the release key whose signature the tarball carried. Upstream fixes a
+release lacks are patched in, as Homebrew does (2.5.24: [T8469](https://dev.gnupg.org/T8469), a
+secret key imported without a passphrase could not decrypt); `BUILD-INFO.txt` lists the commits.
 
 `make` and `bash` are built with `--prefix=/opt/make/make-<version>` and
 `--prefix=/opt/bash/bash-<version>`; unpack them there, where CodingBooth's setups put a source
