@@ -28,6 +28,8 @@ it is useful outside CodingBooth too.
 | `protoc-gen-prost` | protoc plugin generating Prost! message code; upstream publishes the crate only | per Ubuntu + arch | `bin/protoc-gen-prost` |
 | `protoc-gen-tonic` | protoc plugin generating Tonic gRPC service code; upstream publishes the crate only | per Ubuntu + arch | `bin/protoc-gen-tonic` |
 | `gonb` | GoNB, the Go Jupyter kernel, built with cgo off; upstream publishes source only | per Ubuntu + arch | `bin/gonb` |
+| `make` | GNU Make at a pinned release, for a booth that names one instead of Ubuntu's package; upstream ships source only | per Ubuntu + arch | the installed prefix (`bin/make`, `include/`, `share/`), built at `/opt/make/make-<version>` |
+| `bash` | GNU Bash 5.x releases beside the image's own shell (3.2 is in Bash32Ubuntu); version is the tarball's, `5.2.37` or `5.3`; upstream ships source only | per Ubuntu + arch | the installed prefix (`bin/bash`, `lib/`, `include/`, `share/`), built at `/opt/bash/bash-<version>` |
 | `scratch-gui` | Scratch 3 editor, static web files (upstream archived at 5.3.0; AGPL-3.0) | once, any arch | contents of `build/`, plus `LICENSE` and `SOURCE.txt` |
 | `excalidraw` | Excalidraw self-hosted app, static web files | once, any arch | contents of `excalidraw-app/build/` |
 
@@ -74,7 +76,16 @@ moves to a new Lazarus, the build fails until that setting is bumped.
 `gnupg` runs only from `/usr/local`: it is built with `--prefix=/usr/local --sysconfdir=/etc
 --localstatedir=/var`. Copy `bin/`, `sbin/`, `libexec/` and `share/` there and install the Ubuntu
 packages listed in `RUNTIME-DEPS.txt` (Ubuntu's own `gnupg` already pulls in most of them).
-`BUILD-INFO.txt` names the release key whose signature the tarball carried.
+`BUILD-INFO.txt` names the release key whose signature the tarball carried. Upstream fixes a
+release lacks are patched in, as Homebrew does (2.5.24: [T8469](https://dev.gnupg.org/T8469), a
+secret key imported without a passphrase could not decrypt); `BUILD-INFO.txt` lists the commits.
+
+`make` and `bash` are built with `--prefix=/opt/make/make-<version>` and
+`--prefix=/opt/bash/bash-<version>`; unpack them there, where CodingBooth's setups put a source
+build too. Both run from another folder, but look for their message catalogs (and bash for its
+loadable builtins) under that prefix. `make` links only libc, `bash` libc and `libtinfo6`, which
+every Ubuntu image has. The weekly run builds `make` 4.3 and the newest release, and the newest tarball of each
+`bash` series from 5.2 on.
 
 `gonb` needs, at run time, the booth's own `go` and `goimports` on PATH; neither is bundled.
 `protoc-gen-tonic` inserts its code into the files `protoc-gen-prost` writes, so the two run
