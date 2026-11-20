@@ -82,7 +82,7 @@ packages listed in `RUNTIME-DEPS.txt` (Ubuntu's own `gnupg` already pulls in mos
 `--prefix=/opt/bash/bash-<version>`; unpack them there, where CodingBooth's setups put a source
 build too. Both run from another folder, but look for their message catalogs (and bash for its
 loadable builtins) under that prefix. `make` links only libc, `bash` libc and `libtinfo6`, which
-every Ubuntu image has. The weekly run builds the newest `make`, and the newest tarball of each
+every Ubuntu image has. The weekly run builds `make` 4.3 and the newest release, and the newest tarball of each
 `bash` series from 5.2 on.
 
 `gonb` needs, at run time, the booth's own `go` and `goimports` on PATH; neither is bundled.
