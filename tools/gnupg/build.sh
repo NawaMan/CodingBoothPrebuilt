@@ -59,7 +59,20 @@ STAGE="$WORK/stage"
 applied=""
 for entry in "${PATCHES[@]}"; do
     read -r commit sha256 <<< "$entry"
-    cb_fetch "https://github.com/gpg/gnupg/commit/$commit.patch?full_index=1" "$WORK/$commit.patch"
+    # Kept in patches/: GitHub makes a commit's .patch on request and answers 503 far more
+    # often than not, for minutes at a time. One that is not there is asked for, for up to
+    # five minutes. Either way it has to match the SHA-256 above.
+    if [[ -r "$ROOT/tools/gnupg/patches/$commit.patch" ]]; then
+        cp "$ROOT/tools/gnupg/patches/$commit.patch" "$WORK/$commit.patch"
+    else
+        got=0
+        for try in $(seq 1 60); do
+            curl -fsSL --connect-timeout 20 -o "$WORK/$commit.patch" \
+                "https://github.com/gpg/gnupg/commit/$commit.patch?full_index=1" 2>/dev/null && { got=1; break; }
+            sleep 5
+        done
+        (( got )) || { echo "error: GitHub did not serve $commit.patch in five minutes" >&2; exit 1; }
+    fi
     echo "$sha256  $WORK/$commit.patch" | sha256sum -c - > /dev/null \
         || { echo "error: $commit.patch does not match its sha256" >&2; exit 1; }
     patch -s -d "$SRC" -p1 < "$WORK/$commit.patch"
