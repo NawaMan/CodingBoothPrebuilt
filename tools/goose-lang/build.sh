@@ -34,9 +34,16 @@ echo "==> Testing"
 # With its build tree gone, the compiler has to find the standard library, TinyCC's runtime
 # and the packages beside itself, as an unpacked release does.
 mv "$SRC/build" "$SRC/build-moved"
-# `goose version` names the runtime, not the release: "goose runtime <id>".
-runtime=$("$WORK/release/goose" version 2>&1 | head -1)
-[[ "$runtime" =~ ^goose\ runtime\ [0-9a-f]+$ ]] || { echo "error: goose version printed '$runtime'" >&2; exit 1; }
+# `goose version` printed only the runtime ("goose runtime <id>") through 2026.3; from 2026.4
+# it names the release too ("goose v2026.4 (runtime <id>)"), which must then be this one.
+printed=$("$WORK/release/goose" version 2>&1 | head -1)
+if [[ "$printed" =~ ^goose\ v([0-9.]+)\ \(runtime\ [0-9a-f]+\)$ ]]; then
+    [[ "${BASH_REMATCH[1]}" == "$VERSION" ]] \
+        || { echo "error: goose version printed '$printed', not v$VERSION" >&2; exit 1; }
+elif ! [[ "$printed" =~ ^goose\ runtime\ [0-9a-f]+$ ]]; then
+    echo "error: goose version printed '$printed'" >&2; exit 1
+fi
+echo "   goose version: $printed"
 # Every sample, in-process through TinyCC and as a native executable through gcc.
 step "Running the samples" python3 samples/run_samples.py --exe "$WORK/release/goose"
 tail -5 "$log"
