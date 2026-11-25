@@ -44,6 +44,7 @@ elif ! [[ "$printed" =~ ^goose\ runtime\ [0-9a-f]+$ ]]; then
     echo "error: goose version printed '$printed'" >&2; exit 1
 fi
 echo "   goose version: $printed"
+runtime_id=$(sed -n 's/.*runtime \([0-9a-f]*\).*/\1/p' <<< "$printed")
 # Every sample, in-process through TinyCC and as a native executable through gcc.
 step "Running the samples" python3 samples/run_samples.py --exe "$WORK/release/goose"
 tail -5 "$log"
@@ -59,6 +60,6 @@ echo "smoke tests passed"
 cp -a "$WORK/release/." "$PKG_DIR/"
 {
     echo "source:       https://github.com/aardappel/goose at v$VERSION ($(git -C "$SRC" rev-parse --short HEAD))"
-    echo "runtime:      ${runtime#goose runtime }"
+    echo "runtime:      $runtime_id"
     echo "compiler:     $(g++ --version | head -1), cmake $(cmake --version | head -1 | awk '{print $3}')"
 } >> "$BUILD_NOTES"
