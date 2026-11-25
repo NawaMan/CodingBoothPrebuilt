@@ -69,6 +69,25 @@ cb_github_releases() {
         | jq -er '.[] | select(.draft or .prerelease | not) | .tag_name' | sed 's/^v//'
 }
 
+# Newest release of a Go module, from the Go module proxy, without the leading "v".
+#   cb_go_module_latest <module path>     e.g. golang.org/x/tools
+cb_go_module_latest() {
+    curl -fsSL --retry 3 "https://proxy.golang.org/$1/@latest" | jq -er '.Version' | sed 's/^v//'
+}
+
+# Install the newest Go from go.dev into $WORK/go and put it on PATH, with GOPATH and the
+# build cache under $WORK and cgo off (static binaries). A module whose go.mod names a newer
+# toolchain still fetches that one. Exports GOPATH.
+cb_install_go() {
+    local go_arch go_version
+    case "$ARCH" in x86_64) go_arch=amd64 ;; arm64) go_arch=arm64 ;; esac
+    go_version=$(curl -fsSL --retry 3 'https://go.dev/dl/?mode=json' | jq -er '.[0].version')
+    echo "==> Installing $go_version"
+    cb_fetch "https://go.dev/dl/$go_version.linux-$go_arch.tar.gz" "$WORK/go.tar.gz"
+    tar -xzf "$WORK/go.tar.gz" -C "$WORK"
+    export PATH="$WORK/go/bin:$WORK/gopath/bin:$PATH" GOPATH="$WORK/gopath" GOCACHE="$WORK/gocache" CGO_ENABLED=0
+}
+
 # True when version $1 sorts before $2 (sort -V order: 9.12.4 < 9.13).
 cb_version_lt() {
     [[ "$1" != "$2" && "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" == "$1" ]]
