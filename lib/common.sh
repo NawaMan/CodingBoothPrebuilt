@@ -88,6 +88,97 @@ cb_install_go() {
     export PATH="$WORK/go/bin:$WORK/gopath/bin:$PATH" GOPATH="$WORK/gopath" GOCACHE="$WORK/gocache" CGO_ENABLED=0
 }
 
+# Build one Go command at $VERSION of its module with `go install` and check it is that
+# version and static. Needs cb_install_go first. Smoke tests are the caller's: run them on
+# $CB_GO_BIN, then cb_go_package.
+#   cb_go_build <module> <package>   e.g. github.com/go-delve/delve github.com/go-delve/delve/cmd/dlv
+cb_go_build() {
+    CB_GO_MODULE="$1" CB_GO_PACKAGE="$2"
+    echo "==> go install $CB_GO_PACKAGE@v$VERSION"
+    GOBIN="$WORK/bin" go install "$CB_GO_PACKAGE@v$VERSION" > "$WORK/build.log" 2>&1 \
+        || { tail -80 "$WORK/build.log"; return 1; }
+    CB_GO_BIN="$WORK/bin/${CB_GO_PACKAGE##*/}"
+    local built
+    built=$(go version -m "$CB_GO_BIN" | awk '$1 == "mod" { print $3 }')
+    [[ "$built" == "v$VERSION" ]] \
+        || { echo "error: $CB_GO_BIN reports module version '$built', not v$VERSION" >&2; return 1; }
+    file "$CB_GO_BIN" | grep -q "statically linked" \
+        || { echo "error: $CB_GO_BIN is not static: $(file "$CB_GO_BIN")" >&2; return 1; }
+    echo "==> Testing"
+}
+
+# Package what cb_go_build built: bin/<command> plus the module's LICENSE. A module in a
+# repo subfolder may not carry the repo-root LICENSE in its zip; <license-url> is fetched
+# then.
+#   cb_go_package [license-url]
+cb_go_package() {
+    local license_url="${1:-}" mod_license
+    echo "smoke tests passed"
+    mkdir -p "$PKG_DIR/bin"
+    cp "$CB_GO_BIN" "$PKG_DIR/bin/"
+    mod_license="$(go env GOMODCACHE)/$CB_GO_MODULE@v$VERSION/LICENSE"
+    if [[ -f "$mod_license" ]]; then cp "$mod_license" "$PKG_DIR/LICENSE"
+    elif [[ -n "$license_url" ]]; then cb_fetch "$license_url" "$PKG_DIR/LICENSE"
+    else echo "error: no LICENSE in $CB_GO_MODULE@v$VERSION and no URL given" >&2; return 1; fi
+    {
+        echo "source:       $CB_GO_PACKAGE@v$VERSION (go install, CGO_ENABLED=0)"
+        echo "compiler:     $(go version -m "$CB_GO_BIN" | head -1 | awk '{print $2}')"
+    } >> "$BUILD_NOTES"
+}
+
+# Install a minimal stable Rust into $WORK and build crate <crate> at $VERSION with
+# `cargo install --locked`. Every executable it installs is checked for unresolved
+# libraries. Smoke tests are the caller's: run them on $CB_CARGO_ROOT/bin/*, then
+# cb_cargo_package.
+#   cb_cargo_build <crate>
+cb_cargo_build() {
+    CB_CARGO_CRATE="$1"
+    cb_apt build-essential pkg-config
+    echo "==> Installing a Rust toolchain (stable, minimal)"
+    export RUSTUP_HOME="$WORK/rustup" CARGO_HOME="$WORK/cargo"
+    cb_fetch https://sh.rustup.rs "$WORK/rustup-init.sh"
+    sh "$WORK/rustup-init.sh" -y -q --profile minimal --no-modify-path >/dev/null
+    export PATH="$CARGO_HOME/bin:$PATH"
+    rustc --version
+    echo "==> cargo install --locked $CB_CARGO_CRATE $VERSION"
+    CB_CARGO_ROOT="$WORK/root"
+    cargo install --locked --quiet "$CB_CARGO_CRATE" --version "=$VERSION" --root "$CB_CARGO_ROOT" \
+        > "$WORK/build.log" 2>&1 || { tail -80 "$WORK/build.log"; return 1; }
+    local bin missing
+    for bin in "$CB_CARGO_ROOT"/bin/*; do
+        missing="$(ldd "$bin" | grep 'not found' || true)"
+        [[ -z "$missing" ]] || { echo "error: $bin is missing shared libraries: $missing" >&2; return 1; }
+    done
+    echo "==> Testing"
+}
+
+# Package what cb_cargo_build built: the named executables, stripped, plus the crate's
+# licence files.
+#   cb_cargo_package <executable>...
+cb_cargo_package() {
+    local bin src f
+    echo "smoke tests passed"
+    mkdir -p "$PKG_DIR/bin"
+    for bin in "$@"; do
+        cp "$CB_CARGO_ROOT/bin/$bin" "$PKG_DIR/bin/"
+        strip "$PKG_DIR/bin/$bin"
+    done
+    src="$(find "$CARGO_HOME/registry/src" -maxdepth 2 -type d -name "$CB_CARGO_CRATE-$VERSION" | head -1)"
+    for f in LICENSE LICENSE-MIT LICENSE-APACHE UNLICENSE COPYING COPYRIGHT; do
+        if [[ -f "$src/$f" ]]; then cp "$src/$f" "$PKG_DIR/"; fi
+    done
+    {
+        echo "source:       crates.io $CB_CARGO_CRATE $VERSION (cargo install --locked)"
+        echo "compiler:     $(rustc --version)"
+    } >> "$BUILD_NOTES"
+}
+
+# Newest stable version of a crate on crates.io (its API requires a User-Agent).
+cb_crate_latest() {
+    curl -fsSL --retry 3 -A "CodingBoothPrebuilt (https://github.com/NawaMan/CodingBoothPrebuilt)" \
+        "https://crates.io/api/v1/crates/$1" | jq -er '.crate.max_stable_version'
+}
+
 # True when version $1 sorts before $2 (sort -V order: 9.12.4 < 9.13).
 cb_version_lt() {
     [[ "$1" != "$2" && "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" == "$1" ]]

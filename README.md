@@ -30,6 +30,15 @@ it is useful outside CodingBooth too.
 | `gonb` | GoNB, the Go Jupyter kernel, built with cgo off; upstream publishes source only | per Ubuntu + arch | `bin/gonb` |
 | `goimports` | goimports from `golang.org/x/tools`, which GoNB runs on every cell, built with cgo off; version is the x/tools tag (`0.53.0`); upstream publishes source only | per Ubuntu + arch | `bin/goimports` |
 | `wails3` | Wails v3 CLI, built with cgo off; upstream publishes no Linux binaries | per Ubuntu + arch | `bin/wails3` |
+| `gopls` | Go language server, which CodingBooth's go template installs in every Go booth, built with cgo off; version is the `golang.org/x/tools/gopls` module tag; upstream publishes source only | per Ubuntu + arch | `bin/gopls` |
+| `dlv` | Delve, the Go debugger, installed in every Go booth, built with cgo off; upstream publishes no Linux binaries | per Ubuntu + arch | `bin/dlv` |
+| `protoc-gen-go` | protoc plugin generating Go message code, built with cgo off; version is the `google.golang.org/protobuf` tag | per Ubuntu + arch | `bin/protoc-gen-go` |
+| `protoc-gen-go-grpc` | protoc plugin generating Go gRPC service code, built with cgo off; version is its own module's tag (`cmd/protoc-gen-go-grpc/v<version>`) | per Ubuntu + arch | `bin/protoc-gen-go-grpc` |
+| `golangci-lint` | Go linter runner, 2.x only (1.x cannot load packages built by current Go), built with cgo off from the `/v2` module | per Ubuntu + arch | `bin/golangci-lint` |
+| `hey` | HTTP load generator, built with cgo off; upstream ships an amd64 binary only | per Ubuntu + arch | `bin/hey` |
+| `ripgrep` | ripgrep (`rg`), from crates.io with `cargo install --locked` | per Ubuntu + arch | `bin/rg` plus the crate's licence files |
+| `fd-find` | fd (crate `fd-find`), from crates.io with `cargo install --locked` | per Ubuntu + arch | `bin/fd` plus the crate's licence files |
+| `bat` | bat, from crates.io with `cargo install --locked` and its default features | per Ubuntu + arch | `bin/bat` plus the crate's licence files |
 | `make` | GNU Make at a pinned release, for a booth that names one instead of Ubuntu's package; upstream ships source only | per Ubuntu + arch | the installed prefix (`bin/make`, `include/`, `share/`), built at `/opt/make/make-<version>` |
 | `bash` | GNU Bash 5.x releases beside the image's own shell (3.2 is in Bash32Ubuntu); version is the tarball's, `5.2.37` or `5.3`; upstream ships source only | per Ubuntu + arch | the installed prefix (`bin/bash`, `lib/`, `include/`, `share/`), built at `/opt/bash/bash-<version>` |
 | `scratch-gui` | Scratch 3 editor, static web files (upstream archived at 5.3.0; AGPL-3.0) | once, any arch | contents of `build/`, plus `LICENSE` and `SOURCE.txt` |
@@ -88,6 +97,13 @@ build too. Both run from another folder, but look for their message catalogs (an
 loadable builtins) under that prefix. `make` links only libc, `bash` libc and `libtinfo6`, which
 every Ubuntu image has. The weekly run builds `make` 4.3 and the newest release, and the newest tarball of each
 `bash` series from 5.2 on.
+
+The Go and Rust command-line tools above (`gopls` through `bat`) are what CodingBooth's
+`go--install.sh` and `cargo--install.sh` would otherwise compile for the catalog's own
+`install go ...` / `install cargo ...` lines. Those helpers resolve the version the package
+manager would pick (`@latest` through the Go module proxy, crates.io's newest stable), take
+this asset when it is published, and compile only when it is not. `gopls`, `dlv` and
+`golangci-lint` drive the booth's own `go` at run time; none is bundled.
 
 `gonb` needs, at run time, the booth's own `go` and `goimports` on PATH; neither is bundled
 (`goimports` is its own asset). `wails3` scaffolds and builds apps with the booth's `go` and
