@@ -165,6 +165,8 @@ What each tool tracks comes from upstream, not from a list kept here:
 | `nim` | newest patch of each series from `TRACK_FROM` (2.0) on, plus `TRACK_ALSO` (1.6), from the `nim-lang/Nim` tags that have a nim-lang.org source tarball |
 | `goose-lang` | the newest `TRACK_LATEST` (3) releases |
 | `elm` | 0.19.1 only (`tracked.sh`): later releases have official binaries for both CPUs |
+| `evcxr_jupyter` | the newest release, plus `TRACK_ALSO` (0.22.0, the default of CodingBooth's `rust-nb-kernel`) |
+| `make` | the newest release, plus `TRACK_ALSO` (4.3, the other release CodingBooth's make template suggests) |
 | `hls` | ghcup's recommended and latest HLS, each paired with every tracked GHC of a series its cabal file's `tested-with` names |
 | `hlint`, `ormolu` | the versions in each Stackage LTS from `STACKAGE_FROM_LTS` (21) on and in nightly, plus upstream's latest; each builds with its snapshot's GHC |
 | others | the newest upstream release (`latest.sh`) |
@@ -173,6 +175,14 @@ The settings named are in each tool's `tool.conf`. Versions that drop out of tra
 published. Dependabot keeps the
 workflow's GitHub Actions current. Bumping the version CodingBooth pins is still a separate,
 deliberate change in CodingBooth.
+
+**Every CodingBooth default is tracked.** A setup's default version — its pinned default, its
+template's default, or the "latest" it resolves — must be built here for x86_64 and arm64 (or
+as an `any` asset) and must stay in its tool's tracked versions, so the Monday run keeps it
+built. A default that upstream tracking would drop goes in `TRACK_ALSO` (`tool.conf`, with a
+`tracked.sh` that prints it). The fallback compile in CodingBooth is for versions a user names,
+never for a default. CodingBooth's `AGENTS.md` (*Default versions are prebuilt*) is the other
+half of this rule.
 
 ### Locally
 
